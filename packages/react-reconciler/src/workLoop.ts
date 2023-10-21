@@ -56,6 +56,7 @@ function renderRoot(node: FiberRootNode) {
 			workInProgress = null;
 		}
 	} while (true);
+	node.finishedWork = node.current.alternate;
 }
 
 //从当前fiber节点找到根容器

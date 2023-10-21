@@ -8,7 +8,7 @@ export type WorkTag =
 export const FunctionComponet = 0;
 //渲染的根组件
 export const HostRoot = 3;
-//普通的节点<div>
+//普通的Dom节点<div>
 export const HostComponent = 5;
 //<div>111</div> 中的111
 export const HostText = 6;
