@@ -1,11 +1,11 @@
-import { __DEV__ } from '.';
 import { FiberNode } from './fiber';
 import { NoFlags } from './fiberFlag';
 import {
+	Container,
 	appendInitialChild,
 	createInstance,
 	createTextInstance
-} from './hostConfig';
+} from 'hostConfig';
 import { HostComponent, HostRoot, HostText } from './workTag';
 
 export const completeWork = (fiber: FiberNode) => {
@@ -16,7 +16,7 @@ export const completeWork = (fiber: FiberNode) => {
 			if (current !== null && fiber.stateNode) {
 				//存在current以及stateNode代表不是首次mout所以要执行upgate
 			} else {
-				const instance = createInstance(fiber.type, newProps);
+				const instance = createInstance(fiber.type);
 				appendAllChildren(instance, fiber);
 				fiber.stateNode = instance;
 			}
@@ -28,7 +28,7 @@ export const completeWork = (fiber: FiberNode) => {
 			if (current !== null && fiber.stateNode) {
 				//存在current以及stateNode代表不是首次mout所以要执行upgate
 			} else {
-				const instance = createTextInstance(fiber.type, newProps);
+				const instance = createTextInstance(newProps.content);
 				fiber.stateNode = instance;
 			}
 			return;
@@ -39,9 +39,10 @@ export const completeWork = (fiber: FiberNode) => {
 	}
 };
 
-//将所有子元素的dom插入到父节点
-function appendAllChildren(parent: FiberNode, wip: FiberNode) {
+//将所有子元素插入到父元素，如果子元素不是DOM节点类型也就是HostComponent和HostText 则继续向下找，找到后再找兄弟节点
+function appendAllChildren(parent: Container, wip: FiberNode) {
 	let node = wip.child;
+	//仅添加了第一层的child
 	while (node !== null) {
 		if (node.tag === HostComponent || node.tag === HostText) {
 			appendInitialChild(parent, node?.stateNode);

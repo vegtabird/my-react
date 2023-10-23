@@ -1,6 +1,8 @@
 import { beginWork } from './beginWork';
+import { commitMutationEffect } from './commitWork';
 import { completeWork } from './completeWork';
 import { FiberNode, FiberRootNode, createWorkInProgress } from './fiber';
+import { MutationMask, NoFlags } from './fiberFlag';
 import { HostRoot } from './workTag';
 
 let workInProgress: FiberNode | null = null; //正在工作中的FiberNode;
@@ -55,8 +57,39 @@ function renderRoot(node: FiberRootNode) {
 			console.warn('workProgress报错', e);
 			workInProgress = null;
 		}
-	} while (true);
+	} while (workInProgress !== null);
 	node.finishedWork = node.current.alternate;
+	commitRoot(node);
+}
+
+function commitRoot(root: FiberRootNode) {
+	const finishedWork = root.finishedWork;
+	//重置
+	root.finishedWork = null;
+	if (finishedWork === null) {
+		return;
+	}
+
+	if (__DEV__) {
+		console.warn('commit开始', finishedWork);
+	}
+
+	//判断是否需要有flag操作
+	const subTreeHasEffect =
+		(MutationMask & finishedWork.subTreeFlag) !== NoFlags;
+	const rootHasEffect = (MutationMask & finishedWork.flag) !== NoFlags;
+
+	if (subTreeHasEffect || rootHasEffect) {
+		//beforeMutation
+		//Mutation
+		commitMutationEffect(finishedWork);
+		//切换fiber树到current上
+		root.current = finishedWork;
+
+		///layourt
+	} else {
+		root.current = finishedWork;
+	}
 }
 
 //从当前fiber节点找到根容器
@@ -67,7 +100,7 @@ function markUpdateFromFiberToRoot(fiber: FiberNode) {
 		node = parent;
 		parent = node.return;
 	}
-	if (node.type === HostRoot) {
+	if (node.tag === HostRoot) {
 		return node.stateNode;
 	}
 	return null;

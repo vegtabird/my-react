@@ -2,7 +2,6 @@ import { ReactElementType } from 'shared/ReactTypes';
 import { FiberNode } from './fiber';
 import { UpdateQueue, processUpdate } from './updateQueue';
 import { HostComponent, HostRoot, HostText } from './workTag';
-import { __DEV__ } from '.';
 import { mountChildFibers, reconcileChildFibers } from './childFiber';
 
 export const beginWork = (fiber: FiberNode) => {

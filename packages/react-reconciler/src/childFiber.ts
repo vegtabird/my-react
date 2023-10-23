@@ -1,6 +1,5 @@
 import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols';
 import { ReactElementType } from 'shared/ReactTypes';
-import { __DEV__ } from '.';
 import { FiberNode, createFiberFromElement } from './fiber';
 import { HostText } from './workTag';
 import { Placement } from './fiberFlag';
@@ -33,7 +32,7 @@ function ChildReconciler(shouldEffect: boolean) {
 	function placeSingleFiber(fiber: FiberNode) {
 		//当前fiber无alternate代表是挂载
 		if (shouldEffect && fiber.alternate === null) {
-			fiber.tag |= Placement;
+			fiber.flag |= Placement;
 		}
 		return fiber;
 	}

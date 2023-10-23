@@ -9,7 +9,8 @@ const distPath = path.resolve(__dirname, '../../dist/node_modules');
 export function getBasePlugin({
 	typeScriptOption = {},
 	alias = {
-		__DEV__: true
+		__DEV__: true,
+		preventAssignment: true
 	}
 } = {}) {
 	return [replace(alias), cs(), ts(typeScriptOption)];

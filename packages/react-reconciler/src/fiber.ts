@@ -1,8 +1,7 @@
 import { Props, Key, Ref, ReactElementType } from 'shared/ReactTypes';
 import { FunctionComponet, HostComponent, WorkTag } from './workTag';
 import { FiberFlag, NoFlags } from './fiberFlag';
-import { Container } from './hostConfig';
-import { __DEV__ } from '.';
+import { Container } from 'hostConfig';
 //FiberNode用来表示节点的状态，以及兄弟父亲关系
 export class FiberNode {
 	//相当于是哪个类型
@@ -63,6 +62,7 @@ export class FiberRootNode {
 	constructor(container: Container, hostFiberNode: FiberNode) {
 		this.container = container;
 		this.current = hostFiberNode;
+		hostFiberNode.stateNode = this;
 		this.finishedWork = null;
 	}
 }
