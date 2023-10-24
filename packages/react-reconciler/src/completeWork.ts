@@ -6,7 +6,7 @@ import {
 	createInstance,
 	createTextInstance
 } from 'hostConfig';
-import { HostComponent, HostRoot, HostText } from './workTag';
+import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
 
 export const completeWork = (fiber: FiberNode) => {
 	const current = fiber.alternate;
@@ -23,6 +23,10 @@ export const completeWork = (fiber: FiberNode) => {
 			bubleProerties(fiber);
 			return;
 		case HostRoot:
+			bubleProerties(fiber);
+			return;
+		case FunctionComponet:
+			bubleProerties(fiber);
 			return;
 		case HostText:
 			if (current !== null && fiber.stateNode) {

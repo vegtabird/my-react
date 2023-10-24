@@ -6,7 +6,7 @@ import {
 import { Container } from 'hostConfig';
 import { ReactElementType } from 'shared/ReactTypes';
 
-export function createDom(container: Container) {
+export function createRoot(container: Container) {
 	const root = createContainer(container);
 	return {
 		render(element: ReactElementType) {

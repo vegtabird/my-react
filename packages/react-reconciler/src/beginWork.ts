@@ -1,8 +1,9 @@
 import { ReactElementType } from 'shared/ReactTypes';
 import { FiberNode } from './fiber';
 import { UpdateQueue, processUpdate } from './updateQueue';
-import { HostComponent, HostRoot, HostText } from './workTag';
+import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
 import { mountChildFibers, reconcileChildFibers } from './childFiber';
+import { renderWithHooks } from './fiberHooks';
 
 export const beginWork = (fiber: FiberNode) => {
 	//根据tag来判断进行什么操作,并且返回子Fiber
@@ -13,6 +14,8 @@ export const beginWork = (fiber: FiberNode) => {
 			return updateHostComponent(fiber);
 		case HostText:
 			return null;
+		case FunctionComponet:
+			return updateFunctionComponent(fiber);
 		default:
 			if (__DEV__) {
 				console.warn('没有实现的tag', fiber.tag);
@@ -50,6 +53,18 @@ function updateHostComponent(fiber: FiberNode) {
 	const nextChildren = fiber.pendingProps.children;
 	//比较current中的fiber和新的children，生成新的子fiberNode
 	reconcileChildren(fiber, nextChildren);
+	return fiber.child;
+}
+/**
+ *
+ * @param fiber
+ * 更新FunctionComponent:
+ * 1.返回子fiberNode
+ */
+function updateFunctionComponent(fiber: FiberNode) {
+	const child = renderWithHooks(fiber);
+	//比较current中的fiber和新的children，生成新的子fiberNode
+	reconcileChildren(fiber, child);
 	return fiber.child;
 }
 /**
