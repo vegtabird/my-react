@@ -1,7 +1,9 @@
 import React from 'react';
+import { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 const App = () => {
-	return <div>111</div>;
+	const [num, setNum] = useState(300);
+	return <div>{num}</div>;
 };
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<App />);

@@ -1,7 +1,7 @@
 import { getPackagePath, getBasePlugin, getPackageJson } from './utils';
 import generatePackageJson from 'rollup-plugin-generate-package-json';
 import aliasPlugin from '@rollup/plugin-alias';
-const { name, module } = getPackageJson('react-dom');
+const { name, module, peerDependencies } = getPackageJson('react-dom');
 //react源码路径
 const pkgPath = getPackagePath(name);
 const distPath = getPackagePath(name, true);
@@ -11,12 +11,12 @@ export default [
 		output: [
 			{
 				file: `${distPath}/index.js`,
-				name: 'index.js',
+				name: 'ReactDom',
 				format: 'umd'
 			},
 			{
 				file: `${distPath}/client.js`,
-				name: 'client.js',
+				name: 'client',
 				format: 'umd'
 			}
 		],
@@ -42,6 +42,20 @@ export default [
 					};
 				}
 			})
-		]
+		],
+		external: [...Object.keys(peerDependencies)]
+	},
+	// react-test-utils
+	{
+		input: `${pkgPath}/test-utils.ts`,
+		output: [
+			{
+				file: `${distPath}/test-utils.js`,
+				name: 'testUtils',
+				format: 'umd'
+			}
+		],
+		external: ['react-dom', 'react'],
+		plugins: getBasePlugin()
 	}
 ];

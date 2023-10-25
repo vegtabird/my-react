@@ -32,4 +32,5 @@ export const updateContainer = (
 	);
 	//执行更新
 	scheduleUpdateOnFiber(root.current);
+	return element;
 };
