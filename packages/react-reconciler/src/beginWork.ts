@@ -82,7 +82,7 @@ function reconcileChildren(
 		//mound 挂载阶段
 		wip.child = mountChildFibers(wip, null, nextChildren);
 	} else {
-		//update 更新阶段
+		//update 更新阶段， currentNode的层级要和children一起，因为比较的children的
 		wip.child = reconcileChildFibers(wip, current?.child, nextChildren);
 	}
 }

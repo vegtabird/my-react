@@ -1,7 +1,18 @@
 import { FiberNode } from './fiber';
-import { MutationMask, NoFlags, Placement } from './fiberFlag';
-import { Container, appendChildToContainer } from 'hostConfig';
-import { HostComponent, HostRoot, HostText } from './workTag';
+import {
+	ChildDeletion,
+	MutationMask,
+	NoFlags,
+	Placement,
+	Update
+} from './fiberFlag';
+import {
+	Container,
+	appendChildToContainer,
+	commitTextUpdate,
+	removeChild
+} from 'hostConfig';
+import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
 
 let nextEffect: FiberNode | null = null;
 export const commitMutationEffect = (finishedWork: FiberNode) => {
@@ -37,6 +48,97 @@ function commitMutaitionEffectOnFiber(fiber: FiberNode) {
 		commitPlaceMent(fiber);
 		//去除placement标记
 		fiber.flag &= ~Placement;
+	}
+	//执行update操作
+	if ((flag & Update) !== NoFlags) {
+		commitUpdate(fiber);
+		fiber.flag &= ~Update;
+	}
+	//执行删除操作
+	if ((flag & ChildDeletion) !== NoFlags) {
+		const { deletions } = fiber;
+		if (deletions !== null) {
+			deletions.forEach((delFiber) => {
+				commitDeletion(delFiber);
+			});
+		}
+		fiber.flag &= ~ChildDeletion;
+	}
+}
+
+function commitDeletion(fiber: FiberNode) {
+	let rootHostComponent = fiber;
+	commitNestedComponent(fiber, (delFiber) => {
+		switch (delFiber.tag) {
+			case HostComponent:
+				//找到第一个需要删除节点，用于删除整个子树
+				if (rootHostComponent === null) {
+					rootHostComponent = delFiber;
+				}
+				//TODO 解除ref
+				break;
+			case HostText:
+				//找到第一个需要删除节点，用于删除整个子树
+				if (rootHostComponent === null) {
+					rootHostComponent = delFiber;
+				}
+				break;
+			case FunctionComponet:
+				//todo useEffect
+
+				break;
+			default:
+				if (__DEV__) {
+					console.warn('delete undefined fiber', delFiber);
+				}
+		}
+	});
+	if (rootHostComponent !== null) {
+		const hostParent = getHostFromFiber(rootHostComponent);
+		if (hostParent !== null) {
+			removeChild((rootHostComponent as FiberNode).stateNode, hostParent);
+		}
+	}
+	fiber.return = null;
+	fiber.sibling = null;
+}
+
+function commitNestedComponent(
+	root: FiberNode,
+	unCommitFn: (delFiber: FiberNode) => void
+) {
+	let node = root;
+	while (true) {
+		unCommitFn(node);
+		if (node.child !== null) {
+			node.child.return = node;
+			node = node.child;
+			continue;
+		}
+		if (node === root) {
+			return;
+		}
+		while (node.sibling === null) {
+			if (node.return === null || node.return === root) {
+				return;
+			}
+			node = node.return;
+		}
+		node.sibling.return = node;
+		node = node.sibling;
+	}
+}
+
+function commitUpdate(fiber: FiberNode) {
+	switch (fiber.tag) {
+		case HostText:
+			const text = fiber.memorizedProps.content;
+			return commitTextUpdate(fiber.stateNode, text);
+			break;
+		default:
+			if (__DEV__) {
+				console.warn('未实现的update', fiber);
+			}
 	}
 }
 

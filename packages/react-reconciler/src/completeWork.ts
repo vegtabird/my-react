@@ -1,5 +1,5 @@
 import { FiberNode } from './fiber';
-import { NoFlags } from './fiberFlag';
+import { NoFlags, Update } from './fiberFlag';
 import {
 	Container,
 	appendInitialChild,
@@ -7,6 +7,10 @@ import {
 	createTextInstance
 } from 'hostConfig';
 import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
+
+function updateMark(fiber: FiberNode) {
+	fiber.flag |= Update;
+}
 
 export const completeWork = (fiber: FiberNode) => {
 	const current = fiber.alternate;
@@ -31,6 +35,11 @@ export const completeWork = (fiber: FiberNode) => {
 		case HostText:
 			if (current !== null && fiber.stateNode) {
 				//存在current以及stateNode代表不是首次mout所以要执行upgate
+				const oldText = current.memorizedProps.content;
+				const newText = newProps.content;
+				if (oldText !== newText) {
+					updateMark(fiber);
+				}
 			} else {
 				const instance = createTextInstance(newProps.content);
 				fiber.stateNode = instance;

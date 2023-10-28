@@ -24,6 +24,7 @@ export class FiberNode {
 	flag: FiberFlag; //表示要进行什么操作
 	subTreeFlag: FiberFlag; //子树中是否有workFlag
 	updateQueue: unknown; //更新队列
+	deletions: FiberNode[] | null; //要删除的子元素
 	/**
 	 *
 	 * @param tag 表示该节点是什么类型的节点
@@ -51,6 +52,7 @@ export class FiberNode {
 		this.alternate = null;
 		this.flag = NoFlags;
 		this.subTreeFlag = NoFlags;
+		this.deletions = null;
 	}
 }
 
@@ -87,6 +89,7 @@ export const createWorkInProgress = (
 		wip.pendingProps = pendingProps;
 		wip.flag = NoFlags;
 		wip.subTreeFlag = NoFlags;
+		wip.deletions = null;
 	}
 
 	//why这样赋值
