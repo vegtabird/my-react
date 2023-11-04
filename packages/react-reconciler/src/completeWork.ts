@@ -7,6 +7,10 @@ import {
 	createTextInstance
 } from 'hostConfig';
 import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
+import {
+	DomeElement,
+	updateDomPropsFromFiber
+} from 'react-dom/src/SyntheticEvent';
 
 function updateMark(fiber: FiberNode) {
 	fiber.flag |= Update;
@@ -19,8 +23,11 @@ export const completeWork = (fiber: FiberNode) => {
 		case HostComponent:
 			if (current !== null && fiber.stateNode) {
 				//存在current以及stateNode代表不是首次mout所以要执行upgate
+				//todo 对比props是否发生变化再更新
+				updateDomPropsFromFiber(fiber.stateNode as DomeElement, newProps);
 			} else {
-				const instance = createInstance(fiber.type);
+				//需要更新props到dom节点上
+				const instance = createInstance(fiber.type, newProps);
 				appendAllChildren(instance, fiber);
 				fiber.stateNode = instance;
 			}
