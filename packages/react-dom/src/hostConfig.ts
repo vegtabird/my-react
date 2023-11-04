@@ -32,4 +32,13 @@ export function removeChild(
 ) {
 	container.removeChild(child);
 }
+
+export function insertChildToContainer(
+	child: Instance,
+	container: Container,
+	before: Instance
+) {
+	container.insertBefore(child, before);
+}
+
 export const appendChildToContainer = appendInitialChild;
