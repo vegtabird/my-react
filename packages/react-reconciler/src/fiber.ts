@@ -1,7 +1,8 @@
 import { Props, Key, Ref, ReactElementType } from 'shared/ReactTypes';
-import { FunctionComponet, HostComponent, WorkTag } from './workTag';
+import { FunctionComponet, HostComponent, WorkTag, Fragment } from './workTag';
 import { FiberFlag, NoFlags } from './fiberFlag';
 import { Container } from 'hostConfig';
+import { REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols';
 //FiberNode用来表示节点的状态，以及兄弟父亲关系
 export class FiberNode {
 	//相当于是哪个类型
@@ -112,5 +113,11 @@ export function createFiberFromElement(element: ReactElementType) {
 	}
 	const fiber = new FiberNode(fiberTag, props, key);
 	fiber.type = type;
+	return fiber;
+}
+
+export function createFiberFromFragment(elements: any[], key: string) {
+	const fiber = new FiberNode(Fragment, elements, key);
+	fiber.type = REACT_FRAGMENT_TYPE;
 	return fiber;
 }

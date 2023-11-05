@@ -1,7 +1,13 @@
 import { ReactElementType } from 'shared/ReactTypes';
 import { FiberNode } from './fiber';
 import { UpdateQueue, processUpdate } from './updateQueue';
-import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
+import {
+	FunctionComponet,
+	HostComponent,
+	HostRoot,
+	HostText,
+	Fragment
+} from './workTag';
 import { mountChildFibers, reconcileChildFibers } from './childFiber';
 import { renderWithHooks } from './fiberHooks';
 
@@ -16,6 +22,8 @@ export const beginWork = (fiber: FiberNode) => {
 			return null;
 		case FunctionComponet:
 			return updateFunctionComponent(fiber);
+		case Fragment:
+			return updateFragment(fiber);
 		default:
 			if (__DEV__) {
 				console.warn('没有实现的tag', fiber.tag);
@@ -85,4 +93,11 @@ function reconcileChildren(
 		//update 更新阶段， currentNode的层级要和children一起，因为比较的children的
 		wip.child = reconcileChildFibers(wip, current?.child, nextChildren);
 	}
+}
+
+function updateFragment(fiber: FiberNode) {
+	const nextChildren = fiber.pendingProps;
+	//比较current中的fiber和新的children，生成新的子fiberNode
+	reconcileChildren(fiber, nextChildren);
+	return fiber.child;
 }

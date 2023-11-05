@@ -6,7 +6,13 @@ import {
 	createInstance,
 	createTextInstance
 } from 'hostConfig';
-import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
+import {
+	Fragment,
+	FunctionComponet,
+	HostComponent,
+	HostRoot,
+	HostText
+} from './workTag';
 import {
 	DomeElement,
 	updateDomPropsFromFiber
@@ -34,8 +40,7 @@ export const completeWork = (fiber: FiberNode) => {
 			bubleProerties(fiber);
 			return;
 		case HostRoot:
-			bubleProerties(fiber);
-			return;
+		case Fragment:
 		case FunctionComponet:
 			bubleProerties(fiber);
 			return;

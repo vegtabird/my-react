@@ -68,22 +68,37 @@ function commitMutaitionEffectOnFiber(fiber: FiberNode) {
 	}
 }
 
+function recordDeleteChild(
+	childToDelete: FiberNode[],
+	unMountFiber: FiberNode
+) {
+	//如果是fragment节点删除的话，会删除多个节点，并且这些节点一定是互相为兄弟节点
+	const lastChild = childToDelete[childToDelete.length - 1];
+	if (!lastChild) {
+		childToDelete.push(unMountFiber);
+	} else {
+		let node = lastChild.sibling;
+		while (node !== null) {
+			if (unMountFiber === node) {
+				childToDelete.push(unMountFiber);
+			}
+			node = node.sibling;
+		}
+	}
+}
+
 function commitDeletion(fiber: FiberNode) {
-	let rootHostComponent = fiber;
+	const rootChildrenToDelte: FiberNode[] = [];
 	commitNestedComponent(fiber, (delFiber) => {
 		switch (delFiber.tag) {
 			case HostComponent:
 				//找到第一个需要删除节点，用于删除整个子树
-				if (rootHostComponent === null) {
-					rootHostComponent = delFiber;
-				}
+				recordDeleteChild(rootChildrenToDelte, delFiber);
 				//TODO 解除ref
 				break;
 			case HostText:
 				//找到第一个需要删除节点，用于删除整个子树
-				if (rootHostComponent === null) {
-					rootHostComponent = delFiber;
-				}
+				recordDeleteChild(rootChildrenToDelte, delFiber);
 				break;
 			case FunctionComponet:
 				//todo useEffect
@@ -95,10 +110,12 @@ function commitDeletion(fiber: FiberNode) {
 				}
 		}
 	});
-	if (rootHostComponent !== null) {
-		const hostParent = getHostFromFiber(rootHostComponent);
+	if (rootChildrenToDelte.length) {
+		const hostParent = getHostFromFiber(fiber);
 		if (hostParent !== null) {
-			removeChild((rootHostComponent as FiberNode).stateNode, hostParent);
+			rootChildrenToDelte.forEach((node) =>
+				removeChild((node as FiberNode).stateNode, hostParent)
+			);
 		}
 	}
 	fiber.return = null;

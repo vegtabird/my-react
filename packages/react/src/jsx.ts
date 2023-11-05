@@ -1,4 +1,4 @@
-import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols';
+import { REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols';
 import { Type, Key, Props, Ref, ReactElementType } from 'shared/ReactTypes';
 
 //React element constructor function to create element
@@ -72,6 +72,7 @@ export const jsxDEV = (type: Type, config: any) => {
 	}
 	return ReactElement(type, key, ref, props);
 };
+export const Fragment = REACT_FRAGMENT_TYPE;
 export const isValidElementFn = (Object: any) => {
 	return (
 		typeof Object === 'object' &&
