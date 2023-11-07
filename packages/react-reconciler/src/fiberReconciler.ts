@@ -9,6 +9,7 @@ import {
 } from './updateQueue';
 import { HostRoot } from './workTag';
 import { scheduleUpdateOnFiber } from './workLoop';
+import { requestUpdateLane } from './fiberLanes';
 
 //创建fiber根容器 ReactDom.createRoot
 export const createContainer = (container: Container) => {
@@ -24,13 +25,14 @@ export const updateContainer = (
 	root: FiberRootNode
 ) => {
 	//创建更新Action
-	const update = createUpdate<ReactElementType | null>(element);
+	const lane = requestUpdateLane();
+	const update = createUpdate<ReactElementType | null>(element, lane);
 	//插入更新
 	enqueueUpdate(
 		root.current.updateQueue as UpdateQueue<ReactElementType | null>,
 		update
 	);
 	//执行更新
-	scheduleUpdateOnFiber(root.current);
+	scheduleUpdateOnFiber(root.current, lane);
 	return element;
 };

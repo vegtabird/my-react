@@ -9,6 +9,11 @@ export const useState: Dispatcher['useState'] = (initState) => {
 	return dispatcher.useState(initState);
 };
 
+export const useEffect: Dispatcher['useEffect'] = (create, deps) => {
+	const dispatcher = resolveDispatcher();
+	return dispatcher.useEffect(create, deps);
+};
+
 export const __SECRET_DATA_DO_NOT_CHANGE__ = {
 	currentDispatcher
 };

@@ -10,18 +10,19 @@ import {
 } from './workTag';
 import { mountChildFibers, reconcileChildFibers } from './childFiber';
 import { renderWithHooks } from './fiberHooks';
+import { Lane } from './fiberLanes';
 
-export const beginWork = (fiber: FiberNode) => {
+export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	//根据tag来判断进行什么操作,并且返回子Fiber
 	switch (fiber.tag) {
 		case HostRoot:
-			return updateHostRoot(fiber);
+			return updateHostRoot(fiber, lane);
 		case HostComponent:
 			return updateHostComponent(fiber);
 		case HostText:
 			return null;
 		case FunctionComponet:
-			return updateFunctionComponent(fiber);
+			return updateFunctionComponent(fiber, lane);
 		case Fragment:
 			return updateFragment(fiber);
 		default:
@@ -39,13 +40,13 @@ export const beginWork = (fiber: FiberNode) => {
  * 1.获取最新的state
  * 2.返回子fiberNode
  */
-function updateHostRoot(fiber: FiberNode) {
+function updateHostRoot(fiber: FiberNode, lane: Lane) {
 	const baseState = fiber.memoizedState;
 	const updateQueue = fiber.updateQueue as UpdateQueue<ReactElementType>;
 	const pending = updateQueue.shared.pending;
 	//执行更新后updateQueue重置
 	updateQueue.shared.pending = null;
-	const { memoizzedState } = processUpdate(baseState, pending);
+	const { memoizzedState } = processUpdate(baseState, pending, lane);
 	fiber.memoizedState = memoizzedState;
 	//比较current中的fiber和新的children，生成新的子fiberNode
 	reconcileChildren(fiber, memoizzedState);
@@ -69,8 +70,8 @@ function updateHostComponent(fiber: FiberNode) {
  * 更新FunctionComponent:
  * 1.返回子fiberNode
  */
-function updateFunctionComponent(fiber: FiberNode) {
-	const child = renderWithHooks(fiber);
+function updateFunctionComponent(fiber: FiberNode, lane: Lane) {
+	const child = renderWithHooks(fiber, lane);
 	//比较current中的fiber和新的children，生成新的子fiberNode
 	reconcileChildren(fiber, child);
 	return fiber.child;

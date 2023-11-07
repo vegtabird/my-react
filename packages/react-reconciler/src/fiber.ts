@@ -3,6 +3,12 @@ import { FunctionComponet, HostComponent, WorkTag, Fragment } from './workTag';
 import { FiberFlag, NoFlags } from './fiberFlag';
 import { Container } from 'hostConfig';
 import { REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols';
+import { Lanes, NoLane, NoLanes, Lane } from './fiberLanes';
+import { Effect } from './fiberHooks';
+export interface PendingPassiveEffects {
+	unmount: Effect[];
+	update: Effect[];
+}
 //FiberNode用来表示节点的状态，以及兄弟父亲关系
 export class FiberNode {
 	//相当于是哪个类型
@@ -62,11 +68,20 @@ export class FiberRootNode {
 	container: Container;
 	current: FiberNode; //当前页面的fiber树
 	finishedWork: FiberNode | null; //完成更新后的fiber树
+	pendingLanes: Lanes; //当前处理的lane优先级
+	finishedLane: Lane; //当前完成的Lane
+	pendingPassiveEffects: PendingPassiveEffects;
 	constructor(container: Container, hostFiberNode: FiberNode) {
 		this.container = container;
 		this.current = hostFiberNode;
 		hostFiberNode.stateNode = this;
 		this.finishedWork = null;
+		this.pendingLanes = NoLanes;
+		this.finishedLane = NoLane;
+		this.pendingPassiveEffects = {
+			unmount: [],
+			update: []
+		};
 	}
 }
 

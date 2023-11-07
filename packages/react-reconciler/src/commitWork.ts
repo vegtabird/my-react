@@ -1,8 +1,11 @@
-import { FiberNode } from './fiber';
+import { FiberNode, FiberRootNode, PendingPassiveEffects } from './fiber';
 import {
 	ChildDeletion,
+	FiberFlag,
 	MutationMask,
 	NoFlags,
+	PassiveEffect,
+	PassiveMask,
 	Placement,
 	Update
 } from './fiberFlag';
@@ -15,13 +18,19 @@ import {
 	removeChild
 } from 'hostConfig';
 import { FunctionComponet, HostComponent, HostRoot, HostText } from './workTag';
+import { Effect, FCUpdateQueue } from './fiberHooks';
+import { HookHasEffect } from './hooksEffectTags';
 
 let nextEffect: FiberNode | null = null;
-export const commitMutationEffect = (finishedWork: FiberNode) => {
+export const commitMutationEffect = (
+	finishedWork: FiberNode,
+	root: FiberRootNode
+) => {
 	nextEffect = finishedWork;
 	while (nextEffect !== null) {
 		const child: FiberNode | null = nextEffect.child;
-		const hasEffect = (nextEffect.subTreeFlag & MutationMask) !== NoFlags;
+		const hasEffect =
+			(nextEffect.subTreeFlag & (MutationMask | PassiveMask)) !== NoFlags;
 		if (hasEffect && child !== null) {
 			//子节点有副作用操作，且存在子节点，那么继续遍历
 			nextEffect = child;
@@ -29,7 +38,7 @@ export const commitMutationEffect = (finishedWork: FiberNode) => {
 			//已经到最深处，或者子节点不需要操作，则操作本身
 			up: while (nextEffect !== null) {
 				//执行更新操作
-				commitMutaitionEffectOnFiber(nextEffect);
+				commitMutaitionEffectOnFiber(nextEffect, root);
 				const sibling: FiberNode | null = nextEffect.sibling;
 				if (sibling !== null) {
 					//存在兄弟节点继续操作兄弟节点
@@ -43,7 +52,7 @@ export const commitMutationEffect = (finishedWork: FiberNode) => {
 	}
 };
 
-function commitMutaitionEffectOnFiber(fiber: FiberNode) {
+function commitMutaitionEffectOnFiber(fiber: FiberNode, root: FiberRootNode) {
 	const flag = fiber.flag;
 	//执行placeMent操作
 	if ((flag & Placement) !== NoFlags) {
@@ -61,10 +70,15 @@ function commitMutaitionEffectOnFiber(fiber: FiberNode) {
 		const { deletions } = fiber;
 		if (deletions !== null) {
 			deletions.forEach((delFiber) => {
-				commitDeletion(delFiber);
+				commitDeletion(delFiber, root);
 			});
 		}
 		fiber.flag &= ~ChildDeletion;
+	}
+	if ((flag & PassiveEffect) !== NoFlags) {
+		//存在副作用，收集effect
+		commitPassiveEffect(fiber, root, 'update');
+		fiber.flag &= ~PassiveEffect;
 	}
 }
 
@@ -87,7 +101,7 @@ function recordDeleteChild(
 	}
 }
 
-function commitDeletion(fiber: FiberNode) {
+function commitDeletion(fiber: FiberNode, root: FiberRootNode) {
 	const rootChildrenToDelte: FiberNode[] = [];
 	commitNestedComponent(fiber, (delFiber) => {
 		switch (delFiber.tag) {
@@ -102,7 +116,7 @@ function commitDeletion(fiber: FiberNode) {
 				break;
 			case FunctionComponet:
 				//todo useEffect
-
+				commitPassiveEffect(fiber, root, 'unmount');
 				break;
 			default:
 				if (__DEV__) {
@@ -250,4 +264,79 @@ function insertOrappendPlacementNodeIntoContainer(
 			sibling = sibling.sibling;
 		}
 	}
+}
+//收集effect
+function commitPassiveEffect(
+	fiber: FiberNode,
+	root: FiberRootNode,
+	type: keyof PendingPassiveEffects
+) {
+	const updateQueue = fiber.updateQueue as FCUpdateQueue<any>;
+	//当fiber不是函数组件，且update了一个无副作用的effect，则不收集
+	if (
+		fiber.tag !== FunctionComponet ||
+		(type === 'update' && (fiber.flag & PassiveEffect) === NoFlags)
+	) {
+		return;
+	}
+	if (updateQueue !== null) {
+		if (updateQueue.lastEffect === null && __DEV__) {
+			console.warn('不存在有副作用时无lasteffect');
+		} else {
+			root.pendingPassiveEffects[type].push(updateQueue.lastEffect as Effect);
+		}
+	}
+}
+
+function commitHookEffectList(
+	flag: FiberFlag,
+	lastEffect: Effect,
+	callback: (effect: Effect) => void
+) {
+	let effect = lastEffect.next as Effect;
+	do {
+		if ((effect.tag & flag) === flag) {
+			callback(effect);
+		}
+		effect = effect.next as Effect;
+	} while (effect !== lastEffect.next);
+}
+//unmount执行回调
+export function commitHookEffectListUnMount(
+	flag: FiberFlag,
+	lastEffect: Effect
+) {
+	commitHookEffectList(flag, lastEffect, (effect: Effect) => {
+		const destory = effect.destroy;
+		if (typeof destory === 'function') {
+			destory();
+		}
+		//unmount时 会删除整个子节点，所以要移除副作用免得重复调用 为啥不直接从effect链表中移除?
+		effect.tag &= ~HookHasEffect;
+	});
+}
+//destory执行回调
+export function commitHookEffectListDestory(
+	flag: FiberFlag,
+	lastEffect: Effect
+) {
+	commitHookEffectList(flag, lastEffect, (effect: Effect) => {
+		const destory = effect.destroy;
+		if (typeof destory === 'function') {
+			destory();
+		}
+	});
+}
+
+//update执行回调
+export function commitHookEffectListUpdate(
+	flag: FiberFlag,
+	lastEffect: Effect
+) {
+	commitHookEffectList(flag, lastEffect, (effect: Effect) => {
+		const create = effect.create;
+		if (typeof create === 'function') {
+			effect.destroy = create();
+		}
+	});
 }
