@@ -23,6 +23,10 @@ export default defineConfig({
 				replacement: getPackagePath('react-dom')
 			},
 			{
+				find: 'react-noop-renderer',
+				replacement: getPackagePath('react-noop-renderer')
+			},
+			{
 				find: 'hostConfig',
 				replacement: path.resolve(
 					getPackagePath('react-dom'),

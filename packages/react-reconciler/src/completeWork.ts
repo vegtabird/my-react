@@ -2,6 +2,7 @@ import { FiberNode } from './fiber';
 import { NoFlags, Update } from './fiberFlag';
 import {
 	Container,
+	Instance,
 	appendInitialChild,
 	createInstance,
 	createTextInstance
@@ -13,10 +14,6 @@ import {
 	HostRoot,
 	HostText
 } from './workTag';
-import {
-	DomeElement,
-	updateDomPropsFromFiber
-} from 'react-dom/src/SyntheticEvent';
 
 function updateMark(fiber: FiberNode) {
 	fiber.flag |= Update;
@@ -30,7 +27,7 @@ export const completeWork = (fiber: FiberNode) => {
 			if (current !== null && fiber.stateNode) {
 				//存在current以及stateNode代表不是首次mout所以要执行upgate
 				//todo 对比props是否发生变化再更新
-				updateDomPropsFromFiber(fiber.stateNode as DomeElement, newProps);
+				updateMark(fiber);
 			} else {
 				//需要更新props到dom节点上
 				const instance = createInstance(fiber.type, newProps);
@@ -65,7 +62,7 @@ export const completeWork = (fiber: FiberNode) => {
 };
 
 //将所有子元素插入到父元素，如果子元素不是DOM节点类型也就是HostComponent和HostText 则继续向下找，找到后再找兄弟节点
-function appendAllChildren(parent: Container, wip: FiberNode) {
+function appendAllChildren(parent: Container | Instance, wip: FiberNode) {
 	let node = wip.child;
 	//仅添加了第一层的child
 	while (node !== null) {

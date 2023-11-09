@@ -13,7 +13,7 @@ import {
 	Container,
 	Instance,
 	appendChildToContainer,
-	commitTextUpdate,
+	commitUpdate,
 	insertChildToContainer,
 	removeChild
 } from 'hostConfig';
@@ -116,7 +116,7 @@ function commitDeletion(fiber: FiberNode, root: FiberRootNode) {
 				break;
 			case FunctionComponet:
 				//todo useEffect
-				commitPassiveEffect(fiber, root, 'unmount');
+				commitPassiveEffect(delFiber, root, 'unmount');
 				break;
 			default:
 				if (__DEV__) {
@@ -159,19 +159,6 @@ function commitNestedComponent(
 		}
 		node.sibling.return = node;
 		node = node.sibling;
-	}
-}
-
-function commitUpdate(fiber: FiberNode) {
-	switch (fiber.tag) {
-		case HostText:
-			const text = fiber.memorizedProps.content;
-			return commitTextUpdate(fiber.stateNode, text);
-			break;
-		default:
-			if (__DEV__) {
-				console.warn('未实现的update', fiber);
-			}
 	}
 }
 
