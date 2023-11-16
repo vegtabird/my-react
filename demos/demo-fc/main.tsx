@@ -2,32 +2,22 @@ import React, { useEffect } from 'react';
 import { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 function App() {
-	const [num, updateNum] = useState(0);
+	const [num, updateNum] = useState(100);
 
 	return (
-		<div onClick={() => updateNum(num + 1)}>
-			{num === 0 ? <Parent /> : 'noop'}
-		</div>
+		<ul onClick={() => updateNum(50)}>
+			{new Array(num).fill(0).map((_, i) => {
+				return <Child key={i}>{i}</Child>;
+			})}
+		</ul>
 	);
 }
-
-function Parent() {
-	useEffect(() => {
-		console.log('parent mount');
-		return () => {
-			console.log('parent unmount');
-		};
-	}, []);
-	return <Child />;
-}
-
-function Child() {
-	useEffect(() => {
-		console.log('Child mount');
-		return () => console.log('Child unmount');
-	}, []);
-
-	return 'i am child';
+function Child({ children }) {
+	const now = performance.now();
+	while (performance.now() - now < 4) {
+		console.log(performance.now() - now)
+	}
+	return <li>{children}</li>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')!).render(<App />);

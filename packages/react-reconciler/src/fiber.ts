@@ -5,6 +5,7 @@ import { Container } from 'hostConfig';
 import { REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols';
 import { Lanes, NoLane, NoLanes, Lane } from './fiberLanes';
 import { Effect } from './fiberHooks';
+import { CallbackNode } from 'scheduler';
 export interface PendingPassiveEffects {
 	unmount: Effect[];
 	update: Effect[];
@@ -71,6 +72,8 @@ export class FiberRootNode {
 	pendingLanes: Lanes; //当前处理的lane优先级
 	finishedLane: Lane; //当前完成的Lane
 	pendingPassiveEffects: PendingPassiveEffects;
+	callbackNode: CallbackNode | null;
+	callbackPriority: Lane;
 	constructor(container: Container, hostFiberNode: FiberNode) {
 		this.container = container;
 		this.current = hostFiberNode;
@@ -78,6 +81,8 @@ export class FiberRootNode {
 		this.finishedWork = null;
 		this.pendingLanes = NoLanes;
 		this.finishedLane = NoLane;
+		this.callbackNode = null;
+		this.callbackPriority = NoLane;
 		this.pendingPassiveEffects = {
 			unmount: [],
 			update: []

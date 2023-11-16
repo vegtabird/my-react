@@ -1,6 +1,6 @@
 import { Dispatch } from 'react/src/currentDispatcher';
 import { Action } from 'shared/ReactTypes';
-import { Lane } from './fiberLanes';
+import { Lane, NoLane, isSubSet } from './fiberLanes';
 
 export interface Update<State> {
 	action: Action<State>;
@@ -50,30 +50,62 @@ export const processUpdate = <State>(
 	baseState: State,
 	pendingUpdate: Update<State> | null,
 	renderLance: Lane
-): { memoizzedState: State } => {
+): {
+	memoizzedState: State;
+	baseState: State;
+	baseQueue: Update<State> | null;
+} => {
 	const result: ReturnType<typeof processUpdate<State>> = {
-		memoizzedState: baseState
+		memoizzedState: baseState,
+		baseState,
+		baseQueue: null
 	};
 	if (pendingUpdate !== null) {
 		const firstUpdate = pendingUpdate.next;
 		let update = pendingUpdate.next as Update<State>;
+		let newBaseState = baseState;
+		let newState = baseState;
+		let firstBaseQueue: Update<State> | null = null;
+		let lastBaseQueue: Update<State> | null = null;
 		do {
 			const lane = update.lane;
-			if (renderLance === lane) {
+			if (isSubSet(renderLance, lane)) {
+				if (lastBaseQueue !== null) {
+					const clone = createUpdate(update.action, NoLane);
+					lastBaseQueue!.next = clone;
+					lastBaseQueue = clone;
+				}
+				//update 优先级正常不跳过
 				const action = update.action;
 				if (action instanceof Function) {
-					baseState = action(baseState);
+					newState = action(baseState);
 				} else {
-					baseState = action;
+					newState = action;
 				}
 			} else {
-				if (__DEV__) {
-					console.error('不应该进入updateLane !== renderLane逻辑');
+				const clone = createUpdate(update.action, update.lane);
+				//update 优先级不够，需要跳过
+				if (firstBaseQueue === null) {
+					//第一个跳过的update
+					firstBaseQueue = clone;
+					lastBaseQueue = clone;
+					newBaseState = newState;
+				} else {
+					lastBaseQueue!.next = clone;
+					lastBaseQueue = clone;
 				}
 			}
 			update = update.next as Update<State>;
 		} while (update !== firstUpdate && update !== null);
+		if (lastBaseQueue === null) {
+			//没有跳过的updat
+			newBaseState = newState;
+		} else {
+			lastBaseQueue!.next = firstBaseQueue;
+		}
+		result.baseQueue = lastBaseQueue;
+		result.baseState = newBaseState;
+		result.memoizzedState = newState;
 	}
-	result.memoizzedState = baseState;
 	return result;
 };

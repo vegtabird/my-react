@@ -2,6 +2,7 @@ import { Dispatch, Dispatcher } from 'react/src/currentDispatcher';
 import { FiberNode } from './fiber';
 import internals from 'shared/internals';
 import {
+	Update,
 	UpdateQueue,
 	createUpdate,
 	createUpdateQueue,
@@ -18,6 +19,8 @@ interface Hook {
 	next: Hook | null;
 	memorizedState: any;
 	updateQueue: unknown;
+	baseQueue: Update<any> | null;
+	baseState: any;
 }
 
 export interface Effect {
@@ -74,14 +77,29 @@ function updateState<State>(): [State, Dispatch<State>] {
 	const hook = updatedProgressHook();
 	const queue = hook.updateQueue as UpdateQueue<State>;
 	const pending = queue.shared.pending;
+	let baseQueue = currentHook!.baseQueue;
+	const baseState = hook.baseState;
+	//存在上一次的跳过合并pending
 	if (pending !== null) {
-		const { memoizzedState } = processUpdate(
-			hook.memorizedState,
-			pending,
-			renderLane
-		);
-		hook.memorizedState = memoizzedState;
+		if (baseQueue) {
+			const firstBase = baseQueue.next;
+			const firstPending = pending.next;
+			baseQueue.next = firstPending;
+			pending.next = firstBase;
+		}
+		baseQueue = pending;
+		currentHook!.baseQueue = pending;
 		queue.shared.pending = null;
+		if (baseQueue !== null) {
+			const {
+				memoizzedState,
+				baseQueue: newBaseQueue,
+				baseState: newBaseState
+			} = processUpdate(baseState, baseQueue, renderLane);
+			hook.memorizedState = memoizzedState;
+			hook.baseState = newBaseState;
+			hook.baseQueue = newBaseQueue;
+		}
 	}
 	return [hook.memorizedState, queue.dispatch as Dispatch<State>];
 }
@@ -138,6 +156,8 @@ function updatedProgressHook(): Hook {
 	const newHook: Hook = {
 		memorizedState: currentHook?.memorizedState,
 		updateQueue: currentHook?.updateQueue,
+		baseQueue: currentHook?.baseQueue,
+		baseState: currentHook?.baseState,
 		next: null
 	};
 	if (workingInProgressHook === null) {
@@ -160,7 +180,9 @@ function mountedProgressHook(): Hook {
 	const hook: Hook = {
 		next: null,
 		memorizedState: null,
-		updateQueue: null
+		updateQueue: null,
+		baseQueue: null,
+		baseState: null
 	};
 	if (workingInProgressHook === null) {
 		//第一个hook

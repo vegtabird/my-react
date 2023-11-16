@@ -1,5 +1,11 @@
 import { Container } from 'hostConfig';
 import { Props } from 'shared/ReactTypes';
+import {
+	unstable_ImmediatePriority,
+	unstable_NormalPriority,
+	unstable_runWithPriority,
+	unstable_UserBlockingPriority
+} from 'scheduler';
 
 export const elementPropsKey = '__props';
 const validEventTypeList = ['click'];
@@ -79,7 +85,9 @@ function createSyntheticEvent(e: Event): SyntheticEvent {
 function triggleEvent(callbackList: EventCallback[], se: SyntheticEvent) {
 	for (let i = 0; i < callbackList.length; ++i) {
 		const callback = callbackList[i];
-		callback.call(null, se);
+		unstable_runWithPriority(eventTypeToSchdulerPriority(se.type), () => {
+			callback.call(null, se);
+		});
 		if (se.__stopPropagation) {
 			return;
 		}
@@ -103,5 +111,18 @@ function dispatchEvent(container: Container, eventType: string, event: Event) {
 	triggleEvent(capture, syntheticEvent);
 	if (!syntheticEvent.__stopPropagation) {
 		triggleEvent(bubble, syntheticEvent);
+	}
+}
+
+function eventTypeToSchdulerPriority(eventType: string) {
+	switch (eventType) {
+		case 'click':
+		case 'keydown':
+		case 'keyup':
+			return unstable_ImmediatePriority;
+		case 'scroll':
+			return unstable_UserBlockingPriority;
+		default:
+			return unstable_NormalPriority;
 	}
 }
