@@ -7,7 +7,7 @@ import {
 } from 'scheduler';
 import { FiberRootNode } from './fiber';
 import internals from 'shared/internals';
-const { ReactCurrentBatchConfig } = internals
+const { ReactCurrentBatchConfig } = internals;
 export type Lane = number;
 export type Lanes = number;
 

@@ -118,7 +118,7 @@ function performConcurrentWorkOnRoot(
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	didTimeOut?: boolean
 ): any {
-	console.log('concurrent')
+	console.log('concurrent');
 	const callback = root.callbackNode;
 	//执行effect回调，获取最高优先级的调度
 	const didExecuteEffect = flushPassiveEffects(root.pendingPassiveEffects);
