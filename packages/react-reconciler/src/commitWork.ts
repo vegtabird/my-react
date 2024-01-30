@@ -157,7 +157,7 @@ function commitNestedComponent(
 			}
 			node = node.return;
 		}
-		node.sibling.return = node;
+		node.sibling.return = node.return;
 		node = node.sibling;
 	}
 }

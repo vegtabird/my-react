@@ -118,6 +118,7 @@ function performConcurrentWorkOnRoot(
 	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	didTimeOut?: boolean
 ): any {
+	console.log('concurrent')
 	const callback = root.callbackNode;
 	//执行effect回调，获取最高优先级的调度
 	const didExecuteEffect = flushPassiveEffects(root.pendingPassiveEffects);
@@ -163,6 +164,7 @@ function performSyncWorkOnRoot(node: FiberRootNode) {
 }
 
 function flushPassiveEffects(effects: PendingPassiveEffects) {
+	console.log('execute effects');
 	let didExecuteEffect = false;
 	//执行unmount的effect
 	effects.unmount.forEach((effect) => {
@@ -234,6 +236,7 @@ function commitRoot(root: FiberRootNode) {
 		root.current = finishedWork;
 	}
 	rootDoesHasPassiveEffects = false;
+	console.log('end of commit');
 	ensureRootIsScheduled(root);
 }
 
@@ -258,6 +261,7 @@ function markRootUpdated(root: FiberRootNode, lane: Lane) {
 function ensureRootIsScheduled(root: FiberRootNode) {
 	const updateLane = getHighestPriorityLane(root.pendingLanes);
 	const existingCallback = root.callbackNode;
+	console.log('start secdule', updateLane, NoLane);
 	if (updateLane === NoLane) {
 		existingCallback && unstable_cancelCallback(existingCallback);
 		root.callbackNode = null;

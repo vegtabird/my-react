@@ -1,3 +1,4 @@
+import ReactCurrentBatchConfig from './src/currentBatchConfig';
 import currentDispatcher, {
 	Dispatcher,
 	resolveDispatcher
@@ -14,8 +15,14 @@ export const useEffect: Dispatcher['useEffect'] = (create, deps) => {
 	return dispatcher.useEffect(create, deps);
 };
 
+export const useTransition: Dispatcher['useTransition'] = () => {
+	const dispatch = resolveDispatcher();
+	return dispatch.useTransition();
+};
+
 export const __SECRET_DATA_DO_NOT_CHANGE__ = {
-	currentDispatcher
+	currentDispatcher,
+	ReactCurrentBatchConfig
 };
 
 export const version = '0.0.0';

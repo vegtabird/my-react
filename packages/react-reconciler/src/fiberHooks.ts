@@ -38,7 +38,7 @@ export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 type EffectCallback = () => void;
 type EffectDeps = any[] | null;
 
-const { currentDispatcher } = internals;
+const { currentDispatcher, ReactCurrentBatchConfig } = internals;
 
 let workingInProgressHook: Hook | null = null;
 let currentlyRenderingFiber: FiberNode | null = null;
@@ -90,16 +90,16 @@ function updateState<State>(): [State, Dispatch<State>] {
 		baseQueue = pending;
 		currentHook!.baseQueue = pending;
 		queue.shared.pending = null;
-		if (baseQueue !== null) {
-			const {
-				memoizzedState,
-				baseQueue: newBaseQueue,
-				baseState: newBaseState
-			} = processUpdate(baseState, baseQueue, renderLane);
-			hook.memorizedState = memoizzedState;
-			hook.baseState = newBaseState;
-			hook.baseQueue = newBaseQueue;
-		}
+	}
+	if (baseQueue !== null) {
+		const {
+			memoizzedState,
+			baseQueue: newBaseQueue,
+			baseState: newBaseState
+		} = processUpdate(baseState, baseQueue, renderLane);
+		hook.memorizedState = memoizzedState;
+		hook.baseState = newBaseState;
+		hook.baseQueue = newBaseQueue;
 	}
 	return [hook.memorizedState, queue.dispatch as Dispatch<State>];
 }
@@ -117,6 +117,7 @@ function mountedState<State>(
 	hook.memorizedState = memoizedState;
 	const queue = createUpdateQueue<State>();
 	hook.updateQueue = queue;
+	hook.baseState = memoizedState;
 	//@ts-ignore
 	const disPatch = dispatchState.bind(null, currentlyRenderingFiber, queue);
 	queue.dispatch = disPatch;
@@ -286,11 +287,41 @@ function mountedEffect(create: () => void | void, deps: any[] | void) {
 		nextDeps
 	);
 }
+
+function startTransition(
+	setIsPending: (pending: boolean) => void,
+	callback: () => void
+) {
+	setIsPending(true);
+	const preTransition = ReactCurrentBatchConfig.transition;
+	ReactCurrentBatchConfig.transition = 1;
+	callback();
+	setIsPending(false);
+	ReactCurrentBatchConfig.transition = preTransition;
+}
+
+function mountedTransition(): [boolean, (callback: () => void) => void] {
+	const [isPending, setIsPending] = mountedState(false);
+	const hook = mountedProgressHook();
+	const startFn = startTransition.bind(null, setIsPending);
+	hook.memorizedState = startFn;
+	return [isPending, startFn];
+}
+
+function updateTransition(): [boolean, (callback: () => void) => void] {
+	const [isPending] = updateState<boolean>();
+	const hook = updatedProgressHook();
+	const start = hook.memorizedState;
+	return [isPending, start];
+}
+
 const mountedDispatcher: Dispatcher = {
 	useState: mountedState,
-	useEffect: mountedEffect
+	useEffect: mountedEffect,
+	useTransition: mountedTransition
 };
 const updatedDispatcher: Dispatcher = {
 	useState: updateState,
-	useEffect: updatedEffect
+	useEffect: updatedEffect,
+	useTransition: updateTransition
 };
