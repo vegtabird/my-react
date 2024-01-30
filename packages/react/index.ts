@@ -20,6 +20,11 @@ export const useTransition: Dispatcher['useTransition'] = () => {
 	return dispatch.useTransition();
 };
 
+export const useRef: Dispatcher['useRef'] = (instance) => {
+	const dispatch = resolveDispatcher();
+	return dispatch.useRef(instance);
+};
+
 export const __SECRET_DATA_DO_NOT_CHANGE__ = {
 	currentDispatcher,
 	ReactCurrentBatchConfig

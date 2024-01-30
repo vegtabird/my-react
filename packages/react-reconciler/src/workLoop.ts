@@ -5,6 +5,7 @@ import {
 	commitHookEffectListDestory,
 	commitHookEffectListUnMount,
 	commitHookEffectListUpdate,
+	commitLayoutEffects,
 	commitMutationEffect
 } from './commitWork';
 import { completeWork } from './completeWork';
@@ -232,6 +233,7 @@ function commitRoot(root: FiberRootNode) {
 		root.current = finishedWork;
 
 		///layourt
+		commitLayoutEffects(finishedWork, root);
 	} else {
 		root.current = finishedWork;
 	}

@@ -11,6 +11,7 @@ import {
 import { mountChildFibers, reconcileChildFibers } from './childFiber';
 import { renderWithHooks } from './fiberHooks';
 import { Lane } from './fiberLanes';
+import { Ref } from './fiberFlag';
 
 export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	//根据tag来判断进行什么操作,并且返回子Fiber
@@ -61,6 +62,7 @@ function updateHostRoot(fiber: FiberNode, lane: Lane) {
 function updateHostComponent(fiber: FiberNode) {
 	const nextChildren = fiber.pendingProps.children;
 	//比较current中的fiber和新的children，生成新的子fiberNode
+	markRef(fiber.alternate, fiber);
 	reconcileChildren(fiber, nextChildren);
 	return fiber.child;
 }
@@ -101,4 +103,14 @@ function updateFragment(fiber: FiberNode) {
 	//比较current中的fiber和新的children，生成新的子fiberNode
 	reconcileChildren(fiber, nextChildren);
 	return fiber.child;
+}
+
+function markRef(current: FiberNode | null, workInProgress: FiberNode) {
+	const ref = workInProgress.ref;
+	if (
+		(current === null && ref !== null) ||
+		(current !== null && current.ref !== workInProgress.ref)
+	) {
+		workInProgress.flag |= Ref;
+	}
 }

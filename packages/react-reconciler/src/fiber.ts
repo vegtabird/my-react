@@ -18,7 +18,7 @@ export class FiberNode {
 	renderProps: Props;
 	stateNode: any;
 	type: any; //代表tag对应的数据类型 比如tag是FunctionComponet 那么type = ()=>{}
-	ref: Ref;
+	ref: Ref | null;
 	//表示节点关系的属性
 	return: FiberNode | null; //父亲节点
 	sibling: FiberNode | null; //右边兄弟节点
@@ -119,11 +119,12 @@ export const createWorkInProgress = (
 	wip.child = current.child;
 	wip.memorizedProps = current.memorizedProps;
 	wip.memoizedState = current.memoizedState;
+	wip.ref = current.ref;
 	return wip;
 };
 
 export function createFiberFromElement(element: ReactElementType) {
-	const { props, key, type } = element;
+	const { props, key, type, ref } = element;
 	let fiberTag: WorkTag = FunctionComponet;
 	//div span p为hostComponet
 	if (typeof type === 'string') {
@@ -133,6 +134,7 @@ export function createFiberFromElement(element: ReactElementType) {
 	}
 	const fiber = new FiberNode(fiberTag, props, key);
 	fiber.type = type;
+	fiber.ref = ref;
 	return fiber;
 }
 

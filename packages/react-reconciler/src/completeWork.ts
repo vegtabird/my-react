@@ -1,5 +1,5 @@
 import { FiberNode } from './fiber';
-import { NoFlags, Update } from './fiberFlag';
+import { NoFlags, Ref, Update } from './fiberFlag';
 import {
 	Container,
 	Instance,
@@ -19,6 +19,10 @@ function updateMark(fiber: FiberNode) {
 	fiber.flag |= Update;
 }
 
+function markRef(fiber: FiberNode) {
+	fiber.flag |= Ref;
+}
+
 export const completeWork = (fiber: FiberNode) => {
 	const current = fiber.alternate;
 	const newProps = fiber.pendingProps;
@@ -28,11 +32,17 @@ export const completeWork = (fiber: FiberNode) => {
 				//存在current以及stateNode代表不是首次mout所以要执行upgate
 				//todo 对比props是否发生变化再更新
 				updateMark(fiber);
+				if (current.ref !== fiber.ref) {
+					markRef(fiber);
+				}
 			} else {
 				//需要更新props到dom节点上
 				const instance = createInstance(fiber.type, newProps);
 				appendAllChildren(instance, fiber);
 				fiber.stateNode = instance;
+				if (fiber.ref !== null) {
+					markRef(fiber);
+				}
 			}
 			bubleProerties(fiber);
 			return;

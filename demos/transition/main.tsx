@@ -1,6 +1,6 @@
 import ReactDOM from 'react-dom';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useRef, useEffect } from 'react';
 import TabButton from './TabButton';
 import AboutTab from './AboutTab';
 import PostsTab from './PostTab';
@@ -10,12 +10,19 @@ import './style.css';
 function App() {
 	const [isPending, startTransition] = useTransition();
 	const [tab, setTab] = useState('about');
+	const divRef = useRef(null);
+	const testRef = useRef(null)
 	console.log('hello', isPending);
 	function selectTab(nextTab) {
-		startTransition(()=>{
+		console.log('change ref', testRef.current)
+		startTransition(() => {
 			setTab(nextTab);
-		})
+		});
 	}
+	console.log('render ref', testRef.current);
+	useEffect(() => {
+		console.log('effect ref', divRef.current);
+	}, []);
 
 	return (
 		<>
@@ -32,9 +39,10 @@ function App() {
 				联系我
 			</TabButton>
 			<hr />
-			{tab === 'about' && <AboutTab />}
+			{tab === 'about' && <div ref={testRef}>222</div>}
 			{tab === 'posts' && <PostsTab />}
 			{tab === 'contact' && <ContactTab />}
+			<div ref={divRef}>111111</div>
 		</>
 	);
 }

@@ -315,13 +315,33 @@ function updateTransition(): [boolean, (callback: () => void) => void] {
 	return [isPending, start];
 }
 
+function mountedRef<T>(instance: T): {
+	current: T;
+} {
+	const hook = mountedProgressHook();
+	const ref = {
+		current: instance
+	};
+	hook.memorizedState = ref;
+	return hook.memorizedState;
+}
+
+function updateRef<T>(): {
+	current: T;
+} {
+	const hook = updatedProgressHook();
+	return hook.memorizedState;
+}
+
 const mountedDispatcher: Dispatcher = {
 	useState: mountedState,
 	useEffect: mountedEffect,
-	useTransition: mountedTransition
+	useTransition: mountedTransition,
+	useRef: mountedRef
 };
 const updatedDispatcher: Dispatcher = {
 	useState: updateState,
 	useEffect: updatedEffect,
-	useTransition: updateTransition
+	useTransition: updateTransition,
+	useRef: updateRef
 };
