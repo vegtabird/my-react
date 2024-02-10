@@ -6,12 +6,14 @@ import {
 	HostComponent,
 	HostRoot,
 	HostText,
-	Fragment
+	Fragment,
+	ContextProvider
 } from './workTag';
 import { mountChildFibers, reconcileChildFibers } from './childFiber';
 import { renderWithHooks } from './fiberHooks';
 import { Lane } from './fiberLanes';
 import { Ref } from './fiberFlag';
+import { pushProvider } from '../fiberContext';
 
 export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	//根据tag来判断进行什么操作,并且返回子Fiber
@@ -26,6 +28,8 @@ export const beginWork = (fiber: FiberNode, lane: Lane) => {
 			return updateFunctionComponent(fiber, lane);
 		case Fragment:
 			return updateFragment(fiber);
+		case ContextProvider:
+			return updateProvider(fiber);
 		default:
 			if (__DEV__) {
 				console.warn('没有实现的tag', fiber.tag);
@@ -34,6 +38,18 @@ export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	}
 	return null;
 };
+
+function updateProvider(fiber: FiberNode) {
+	const provider = fiber.type;
+	const context = provider._context;
+	const pendingProps = fiber.pendingProps;
+	const nextChildren = pendingProps.children;
+	pushProvider(context, pendingProps.value);
+	//比较current中的fiber和新的children，生成新的子fiberNode
+	reconcileChildren(fiber, nextChildren);
+	return fiber.child;
+}
+
 /**
  *
  * @param fiber

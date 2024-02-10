@@ -8,12 +8,14 @@ import {
 	createTextInstance
 } from 'hostConfig';
 import {
+	ContextProvider,
 	Fragment,
 	FunctionComponet,
 	HostComponent,
 	HostRoot,
 	HostText
 } from './workTag';
+import { popProvider } from '../fiberContext';
 
 function updateMark(fiber: FiberNode) {
 	fiber.flag |= Update;
@@ -49,6 +51,11 @@ export const completeWork = (fiber: FiberNode) => {
 		case HostRoot:
 		case Fragment:
 		case FunctionComponet:
+			bubleProerties(fiber);
+			return;
+		case ContextProvider:
+			const context = fiber.type._context;
+			popProvider(context);
 			bubleProerties(fiber);
 			return;
 		case HostText:

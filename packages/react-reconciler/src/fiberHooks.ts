@@ -9,7 +9,7 @@ import {
 	enqueueUpdate,
 	processUpdate
 } from './updateQueue';
-import { Action } from 'shared/ReactTypes';
+import { Action, ReactContext } from 'shared/ReactTypes';
 import { scheduleUpdateOnFiber } from './workLoop';
 import { Lane, NoLane, requestUpdateLane } from './fiberLanes';
 import { FiberFlag, PassiveEffect } from './fiberFlag';
@@ -333,15 +333,25 @@ function updateRef<T>(): {
 	return hook.memorizedState;
 }
 
+function readContext<T>(context: ReactContext<T>): T {
+	if (!currentlyRenderingFiber) {
+		throw new Error('只能在函数组件中调用useContext');
+	}
+	const value = context._currentValue;
+	return value;
+}
+
 const mountedDispatcher: Dispatcher = {
 	useState: mountedState,
 	useEffect: mountedEffect,
 	useTransition: mountedTransition,
-	useRef: mountedRef
+	useRef: mountedRef,
+	useContext: readContext
 };
 const updatedDispatcher: Dispatcher = {
 	useState: updateState,
 	useEffect: updatedEffect,
 	useTransition: updateTransition,
-	useRef: updateRef
+	useRef: updateRef,
+	useContext: readContext
 };

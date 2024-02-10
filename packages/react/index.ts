@@ -5,6 +5,8 @@ import currentDispatcher, {
 } from './src/currentDispatcher';
 import { jsx, isValidElementFn } from './src/jsx';
 
+export { createContext } from './src/context';
+
 export const useState: Dispatcher['useState'] = (initState) => {
 	const dispatcher = resolveDispatcher();
 	return dispatcher.useState(initState);
@@ -13,6 +15,11 @@ export const useState: Dispatcher['useState'] = (initState) => {
 export const useEffect: Dispatcher['useEffect'] = (create, deps) => {
 	const dispatcher = resolveDispatcher();
 	return dispatcher.useEffect(create, deps);
+};
+
+export const useContext: Dispatcher['useContext'] = (context) => {
+	const dispatcher = resolveDispatcher();
+	return dispatcher.useContext(context);
 };
 
 export const useTransition: Dispatcher['useTransition'] = () => {

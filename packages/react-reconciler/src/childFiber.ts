@@ -1,5 +1,5 @@
 import { REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols';
-import { Props, ReactElementType } from 'shared/ReactTypes';
+import { Key, Props, ReactElementType } from 'shared/ReactTypes';
 import {
 	FiberNode,
 	createFiberFromElement,
@@ -112,13 +112,25 @@ function ChildReconciler(shouldEffect: boolean) {
 		}
 		return fiber;
 	}
+	function getElementKeyToUse(element: any, index?: number): Key {
+		if (
+			Array.isArray(element) ||
+			typeof element === 'string' ||
+			typeof element === 'number' ||
+			element === null ||
+			element === undefined
+		) {
+			return index;
+		}
+		return element.key !== null ? element.key : index;
+	}
 	function updateFiberFromMap(
 		returnFiber: FiberNode,
 		existingChildren: ExistingChildren,
 		index: number,
 		child: any
 	): FiberNode | null {
-		const key = child.key !== null ? child.key : index;
+		const key = getElementKeyToUse(child, index);
 		const before = existingChildren.get(key);
 		//HostText是否可以复用
 		if (typeof child === 'string' || typeof child === 'number') {

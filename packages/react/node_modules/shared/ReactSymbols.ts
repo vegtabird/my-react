@@ -8,3 +8,11 @@ export const REACT_ELEMENT_TYPE = IS_SUPPORT_SYMBOL
 export const REACT_FRAGMENT_TYPE = IS_SUPPORT_SYMBOL
 	? Symbol.for('react.fragment')
 	: 0xeacb;
+
+export const REACT_CONTEXT_TYPE = IS_SUPPORT_SYMBOL
+	? Symbol.for('react.context')
+	: 0xeacc;
+
+export const REACT_PROVIDER_TYPE = IS_SUPPORT_SYMBOL
+	? Symbol.for('react.provider')
+	: 0xeac2;
