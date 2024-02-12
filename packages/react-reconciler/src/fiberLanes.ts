@@ -100,3 +100,11 @@ export function getNextLane(root: FiberRootNode): Lane {
 	}
 	return nextLane;
 }
+
+export function isIncludeLanes(set: Lanes, lane: Lane | Lanes) {
+	return (set & lane) !== NoLane;
+}
+
+export function removeLanes(set: Lanes, lane: Lane | Lanes) {
+	return set & ~lane;
+}

@@ -19,6 +19,7 @@ import {
 } from './workTag';
 import { popProvider } from '../fiberContext';
 import { popSuspenseHandler } from './suspenseContext';
+import { NoLane, mergeLanes } from './fiberLanes';
 
 function updateMark(fiber: FiberNode) {
 	fiber.flag |= Update;
@@ -131,12 +132,18 @@ function appendAllChildren(parent: Container | Instance, wip: FiberNode) {
 function bubleProerties(wip: FiberNode) {
 	let node = wip.child;
 	let subTreeFlag = NoFlags;
+	let newChilLanes = NoLane;
 	//仅需遍历兄弟节点，应为子节点已经在subTreeFlag中了
 	while (node !== null) {
 		subTreeFlag |= node.flag;
 		subTreeFlag |= node.subTreeFlag;
+		newChilLanes = mergeLanes(
+			newChilLanes,
+			mergeLanes(node.lanes, node.childLanes)
+		);
 		node.return = wip;
 		node = node.sibling;
 	}
 	wip.subTreeFlag |= subTreeFlag;
+	wip.childLanes = newChilLanes;
 }

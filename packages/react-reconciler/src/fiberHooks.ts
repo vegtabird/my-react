@@ -11,11 +11,18 @@ import {
 } from './updateQueue';
 import { Action, ReactContext, Thenable, Usable } from 'shared/ReactTypes';
 import { scheduleUpdateOnFiber } from './workLoop';
-import { Lane, NoLane, requestUpdateLane } from './fiberLanes';
+import {
+	Lane,
+	NoLane,
+	mergeLanes,
+	removeLanes,
+	requestUpdateLane
+} from './fiberLanes';
 import { FiberFlag, PassiveEffect } from './fiberFlag';
 import { HookHasEffect, Passive } from './hooksEffectTags';
 import { REACT_CONTEXT_TYPE } from 'shared/ReactSymbols';
 import { trackUsedThenable } from './thenable';
+import { markDidRecieveUpdate } from './beginWork';
 
 interface Hook {
 	next: Hook | null;
@@ -94,11 +101,20 @@ function updateState<State>(): [State, Dispatch<State>] {
 		queue.shared.pending = null;
 	}
 	if (baseQueue !== null) {
+		const prevState = hook.memorizedState;
 		const {
 			memoizzedState,
 			baseQueue: newBaseQueue,
 			baseState: newBaseState
-		} = processUpdate(baseState, baseQueue, renderLane);
+		} = processUpdate(baseState, baseQueue, renderLane, (update) => {
+			const lane = update.lane;
+			const fiber = currentlyRenderingFiber as FiberNode;
+			fiber.lanes = mergeLanes(fiber.lanes, lane);
+		});
+		if (!Object.is(prevState, memoizzedState)) {
+			//前后状态更新了标记需要更新不能优化
+			markDidRecieveUpdate();
+		}
 		hook.memorizedState = memoizzedState;
 		hook.baseState = newBaseState;
 		hook.baseQueue = newBaseQueue;
@@ -133,7 +149,9 @@ function dispatchState<State>(
 ) {
 	const lane = requestUpdateLane();
 	const update = createUpdate(action, lane);
-	enqueueUpdate(queue, update);
+
+	enqueueUpdate(queue, update, fiber, lane);
+
 	scheduleUpdateOnFiber(fiber, lane);
 }
 
@@ -361,6 +379,17 @@ export function resetOnUnwind() {
 	workingInProgressHook = null;
 	currentlyRenderingFiber = null;
 	currentHook = null;
+}
+
+export function bailoutHook(wip: FiberNode, renderLane: Lane) {
+	//restore hook
+	const current = wip.alternate;
+	if (current) {
+		wip.updateQueue = current.updateQueue;
+		current.lanes = removeLanes(current.lanes, renderLane);
+	}
+	//移除副作用
+	wip.flag &= ~PassiveEffect;
 }
 
 const mountedDispatcher: Dispatcher = {

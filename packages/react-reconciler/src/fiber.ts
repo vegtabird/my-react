@@ -50,6 +50,8 @@ export class FiberNode {
 	subTreeFlag: FiberFlag; //子树中是否有workFlag
 	updateQueue: unknown; //更新队列
 	deletions: FiberNode[] | null; //要删除的子元素
+	lanes: Lanes;
+	childLanes: Lanes;
 	/**
 	 *
 	 * @param tag 表示该节点是什么类型的节点
@@ -78,6 +80,8 @@ export class FiberNode {
 		this.flag = NoFlags;
 		this.subTreeFlag = NoFlags;
 		this.deletions = null;
+		this.lanes = NoLane;
+		this.childLanes = NoLane;
 	}
 }
 
@@ -143,6 +147,8 @@ export const createWorkInProgress = (
 	wip.memorizedProps = current.memorizedProps;
 	wip.memoizedState = current.memoizedState;
 	wip.ref = current.ref;
+	wip.lanes = current.lanes;
+	wip.childLanes = current.childLanes;
 	return wip;
 };
 

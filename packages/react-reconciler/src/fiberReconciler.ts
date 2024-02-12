@@ -36,7 +36,9 @@ export const updateContainer = (
 		//插入更新
 		enqueueUpdate(
 			root.current.updateQueue as UpdateQueue<ReactElementType | null>,
-			update
+			update,
+			root.current,
+			lane
 		);
 		//执行更新
 		scheduleUpdateOnFiber(root.current, lane);

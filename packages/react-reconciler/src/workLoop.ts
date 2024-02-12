@@ -334,10 +334,17 @@ function commitRoot(root: FiberRootNode) {
 }
 
 //从当前fiber节点找到根容器
-function markUpdateFromFiberToRoot(fiber: FiberNode) {
+function markUpdateFromFiberToRoot(fiber: FiberNode, lane: Lane) {
 	let node = fiber;
 	let parent = node.return;
 	while (parent) {
+		parent.childLanes = mergeLanes(parent.childLanes, lane);
+		if (parent.alternate) {
+			parent.alternate.childLanes = mergeLanes(
+				parent.alternate.childLanes,
+				lane
+			);
+		}
 		node = parent;
 		parent = node.return;
 	}
@@ -392,7 +399,7 @@ export function ensureRootIsScheduled(root: FiberRootNode) {
 //开始更新
 export function scheduleUpdateOnFiber(node: FiberNode, lane: Lane) {
 	//找寻根容器
-	const rootContainer = markUpdateFromFiberToRoot(node);
+	const rootContainer = markUpdateFromFiberToRoot(node, lane);
 	markRootUpdated(rootContainer, lane);
 	ensureRootIsScheduled(rootContainer);
 }

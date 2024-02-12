@@ -1,6 +1,7 @@
 import { Dispatch } from 'react/src/currentDispatcher';
 import { Action } from 'shared/ReactTypes';
-import { Lane, NoLane, isSubSet } from './fiberLanes';
+import { Lane, NoLane, isSubSet, mergeLanes } from './fiberLanes';
+import { FiberNode } from './fiber';
 
 export interface Update<State> {
 	action: Action<State>;
@@ -34,7 +35,9 @@ export const createUpdateQueue = <State>() => {
 
 export const enqueueUpdate = <State>(
 	updateQueue: UpdateQueue<State>,
-	update: Update<State>
+	update: Update<State>,
+	fiber: FiberNode,
+	lane: Lane
 ) => {
 	const pending = updateQueue.shared.pending;
 	if (pending === null) {
@@ -44,12 +47,18 @@ export const enqueueUpdate = <State>(
 		pending.next = update;
 	}
 	updateQueue.shared.pending = update;
+	fiber.lanes = mergeLanes(fiber.lanes, lane);
+	const alternate = fiber.alternate;
+	if (alternate !== null) {
+		alternate.lanes = mergeLanes(alternate.lanes, lane);
+	}
 };
 
 export const processUpdate = <State>(
 	baseState: State,
 	pendingUpdate: Update<State> | null,
-	renderLance: Lane
+	renderLance: Lane,
+	onSkipUpdate?: <State>(update: Update<State>) => void
 ): {
 	memoizzedState: State;
 	baseState: State;
@@ -84,6 +93,7 @@ export const processUpdate = <State>(
 				}
 			} else {
 				const clone = createUpdate(update.action, update.lane);
+				onSkipUpdate?.(clone);
 				//update 优先级不够，需要跳过
 				if (firstBaseQueue === null) {
 					//第一个跳过的update

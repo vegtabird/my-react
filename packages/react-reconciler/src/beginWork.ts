@@ -17,9 +17,13 @@ import {
 	SuspenseComponent,
 	OffscreenComponent
 } from './workTag';
-import { mountChildFibers, reconcileChildFibers } from './childFiber';
-import { renderWithHooks } from './fiberHooks';
-import { Lane } from './fiberLanes';
+import {
+	cloneChildFibers,
+	mountChildFibers,
+	reconcileChildFibers
+} from './childFiber';
+import { bailoutHook, renderWithHooks } from './fiberHooks';
+import { Lane, Lanes, NoLane, isIncludeLanes } from './fiberLanes';
 import {
 	ChildDeletion,
 	DidCapture,
@@ -30,7 +34,62 @@ import {
 import { pushProvider } from '../fiberContext';
 import { pushSuspenseHandler } from './suspenseContext';
 
+let didRecieveUpdate = false;
+export function markDidRecieveUpdate() {
+	didRecieveUpdate = true;
+}
+
+function checkScheduleStateOrContet(current: FiberNode, lane: Lanes) {
+	const lanes = current.lanes;
+	if (isIncludeLanes(lanes, lane)) {
+		return true;
+	}
+	return false;
+}
+
+function bailouOnAlreadyFinishedWork(wip: FiberNode, renderLane: Lane) {
+	if (!isIncludeLanes(wip.childLanes, renderLane)) {
+		if (__DEV__) {
+			console.log('优化整颗子树');
+			//返回null时render loop 就不会继续向下遍历
+			return null;
+		}
+	}
+	if (__DEV__) {
+		console.warn('bailout一个fiber', wip);
+	}
+	cloneChildFibers(wip);
+	return wip.child;
+}
+
 export const beginWork = (fiber: FiberNode, lane: Lane) => {
+	didRecieveUpdate = false;
+	//判断props,state,type,context是否发生变化
+	const current = fiber.alternate;
+	if (current !== null) {
+		//props & type;
+		const oldProps = current.memorizedProps;
+		const newProps = fiber.pendingProps;
+		if (oldProps !== newProps || fiber.type !== current.type) {
+			didRecieveUpdate = true;
+		} else {
+			//是否存在update更新
+			const hasStateOrContext = checkScheduleStateOrContet(current, lane);
+			if (!hasStateOrContext) {
+				didRecieveUpdate = false;
+				switch (fiber.tag) {
+					case ContextProvider:
+						const newValue = fiber.memorizedProps.value;
+						const context = fiber.type._context;
+						pushProvider(context, newValue);
+						break;
+				}
+				return bailouOnAlreadyFinishedWork(fiber, lane);
+			}
+		}
+	}
+	//消费lane
+	fiber.lanes = NoLane;
 	//根据tag来判断进行什么操作,并且返回子Fiber
 	switch (fiber.tag) {
 		case HostRoot:
@@ -233,13 +292,19 @@ function updateHostRoot(fiber: FiberNode, lane: Lane) {
 	const baseState = fiber.memoizedState;
 	const updateQueue = fiber.updateQueue as UpdateQueue<ReactElementType>;
 	const pending = updateQueue.shared.pending;
+	const prevChildren = fiber.memoizedState;
 	//执行更新后updateQueue重置
 	updateQueue.shared.pending = null;
 	const { memoizzedState } = processUpdate(baseState, pending, lane);
 	fiber.memoizedState = memoizzedState;
 	const current = fiber.alternate;
 	if (current) {
-		current.memoizedState = memoizzedState;
+		if (!current.memoizedState) {
+			current.memoizedState = memoizzedState;
+		}
+	}
+	if (prevChildren === fiber.memoizedState) {
+		return bailouOnAlreadyFinishedWork(fiber, lane);
 	}
 	//比较current中的fiber和新的children，生成新的子fiberNode
 	reconcileChildren(fiber, memoizzedState);
@@ -266,6 +331,11 @@ function updateHostComponent(fiber: FiberNode) {
  */
 function updateFunctionComponent(fiber: FiberNode, lane: Lane) {
 	const child = renderWithHooks(fiber, lane);
+	const current = fiber.alternate;
+	if (current !== null && !didRecieveUpdate) {
+		bailoutHook(fiber, lane);
+		return bailouOnAlreadyFinishedWork(fiber, lane);
+	}
 	//比较current中的fiber和新的children，生成新的子fiberNode
 	reconcileChildren(fiber, child);
 	return fiber.child;
