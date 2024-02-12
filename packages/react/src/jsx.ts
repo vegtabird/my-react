@@ -1,11 +1,15 @@
-import { REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols';
+import {
+	REACT_ELEMENT_TYPE,
+	REACT_FRAGMENT_TYPE,
+	REACT_SUSPENSE_TYPE
+} from 'shared/ReactSymbols';
 import { Type, Key, Props, Ref, ReactElementType } from 'shared/ReactTypes';
 
 //React element constructor function to create element
 const ReactElement = function (
 	type: Type,
 	key: Key,
-	ref: Ref,
+	ref: Ref | null,
 	props: Props
 ): ReactElementType {
 	const element: ReactElementType = {
@@ -21,7 +25,7 @@ const ReactElement = function (
 
 const jsx = (type: Type, config: any, ...children: any[]) => {
 	let key: Key = null;
-	let ref: Ref = null;
+	let ref: Ref | null = null;
 	const props: Props = {};
 	for (const prop in config) {
 		const value = config[prop];
@@ -50,7 +54,7 @@ const jsx = (type: Type, config: any, ...children: any[]) => {
 
 export const jsxDEV = (type: Type, config: any) => {
 	let key: Key = null;
-	let ref: Ref = null;
+	let ref: Ref | null = null;
 	const props: Props = {};
 	for (const prop in config) {
 		const value = config[prop];
@@ -73,6 +77,7 @@ export const jsxDEV = (type: Type, config: any) => {
 	return ReactElement(type, key, ref, props);
 };
 export const Fragment = REACT_FRAGMENT_TYPE;
+export const Suspense = REACT_SUSPENSE_TYPE;
 export const isValidElementFn = (Object: any) => {
 	return (
 		typeof Object === 'object' &&

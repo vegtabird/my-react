@@ -1,5 +1,11 @@
 import { ReactElementType } from 'shared/ReactTypes';
-import { FiberNode } from './fiber';
+import {
+	FiberNode,
+	OffscreenChildrenProps,
+	createFiberFromFragment,
+	createFiberFromOffscreen,
+	createWorkInProgress
+} from './fiber';
 import { UpdateQueue, processUpdate } from './updateQueue';
 import {
 	FunctionComponet,
@@ -7,13 +13,22 @@ import {
 	HostRoot,
 	HostText,
 	Fragment,
-	ContextProvider
+	ContextProvider,
+	SuspenseComponent,
+	OffscreenComponent
 } from './workTag';
 import { mountChildFibers, reconcileChildFibers } from './childFiber';
 import { renderWithHooks } from './fiberHooks';
 import { Lane } from './fiberLanes';
-import { Ref } from './fiberFlag';
+import {
+	ChildDeletion,
+	DidCapture,
+	NoFlags,
+	Placement,
+	Ref
+} from './fiberFlag';
 import { pushProvider } from '../fiberContext';
+import { pushSuspenseHandler } from './suspenseContext';
 
 export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	//根据tag来判断进行什么操作,并且返回子Fiber
@@ -30,6 +45,10 @@ export const beginWork = (fiber: FiberNode, lane: Lane) => {
 			return updateFragment(fiber);
 		case ContextProvider:
 			return updateProvider(fiber);
+		case SuspenseComponent:
+			return updateSuspenseComponent(fiber);
+		case OffscreenComponent:
+			return updateOffscreenComponent(fiber);
 		default:
 			if (__DEV__) {
 				console.warn('没有实现的tag', fiber.tag);
@@ -38,6 +57,159 @@ export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	}
 	return null;
 };
+
+function updateSuspenseComponent(fiber: FiberNode) {
+	const nextProps = fiber.pendingProps;
+	const nextPrimaryChildren = nextProps.children;
+	const nextFallbackChildren = nextProps.fallback;
+	let showFallback = false;
+	const isSuspended = (fiber.flag & DidCapture) !== NoFlags;
+	if (isSuspended) {
+		showFallback = true;
+		fiber.flag &= ~DidCapture;
+	}
+	pushSuspenseHandler(fiber);
+	if (fiber.alternate) {
+		//update
+		if (showFallback) {
+			//挂起
+			return updateSuspenseFallbackChildren(
+				fiber,
+				nextPrimaryChildren,
+				nextFallbackChildren
+			);
+		} else {
+			//正常
+			return updateSuspensePrimaryChildren(fiber, nextPrimaryChildren);
+		}
+	} else {
+		//mounted
+		if (showFallback) {
+			//挂起
+			return mountSuspenseFallbackChildren(
+				fiber,
+				nextPrimaryChildren,
+				nextFallbackChildren
+			);
+		} else {
+			//正常
+			return mountSuspensePrimaryChildren(fiber, nextPrimaryChildren);
+		}
+	}
+}
+function updateSuspensePrimaryChildren(
+	workInProgress: FiberNode,
+	primaryChildren: any
+) {
+	const current = workInProgress.alternate as FiberNode;
+	const currentPrimaryChildFragment = current.child as FiberNode;
+	const currentFallbackChildFragment: FiberNode | null =
+		currentPrimaryChildFragment.sibling;
+
+	const primaryChildProps: OffscreenChildrenProps = {
+		mode: 'visible',
+		children: primaryChildren
+	};
+
+	const primaryChildFragment = createWorkInProgress(
+		currentPrimaryChildFragment,
+		primaryChildProps
+	);
+	primaryChildFragment.return = workInProgress;
+	primaryChildFragment.sibling = null;
+	workInProgress.child = primaryChildFragment;
+
+	if (currentFallbackChildFragment !== null) {
+		const deletions = workInProgress.deletions;
+		if (deletions === null) {
+			workInProgress.deletions = [currentFallbackChildFragment];
+			workInProgress.flag |= ChildDeletion;
+		} else {
+			deletions.push(currentFallbackChildFragment);
+		}
+	}
+
+	return primaryChildFragment;
+}
+
+function mountSuspenseFallbackChildren(
+	fiber: FiberNode,
+	primaryChildren: any,
+	fallbackChildren: any
+) {
+	const primaryChildrenFragmentRrops: OffscreenChildrenProps = {
+		mode: 'hidden',
+		children: primaryChildren
+	};
+	const primaryChildFragment = createFiberFromOffscreen(
+		primaryChildrenFragmentRrops
+	);
+	const primaryFallbackFragment = createFiberFromFragment(
+		fallbackChildren,
+		null
+	);
+
+	primaryFallbackFragment.flag |= Placement;
+
+	primaryChildFragment.return = fiber;
+	fiber.child = primaryChildFragment;
+	primaryChildFragment.sibling = primaryFallbackFragment;
+	primaryChildFragment.return = fiber;
+	return primaryFallbackFragment;
+}
+
+function mountSuspensePrimaryChildren(fiber: FiberNode, primaryChildren: any) {
+	const primaryChildrenFragmentRrops: OffscreenChildrenProps = {
+		mode: 'visible',
+		children: primaryChildren
+	};
+	const primaryChildFragment = createFiberFromOffscreen(
+		primaryChildrenFragmentRrops
+	);
+	fiber.child = primaryChildFragment;
+	primaryChildFragment.return = fiber;
+	return primaryChildFragment;
+}
+
+function updateSuspenseFallbackChildren(
+	fiber: FiberNode,
+	primaryChildren: any,
+	fallbackChildren: any
+) {
+	const current = fiber.alternate;
+	const currentPrimaryChildren = current!.child as FiberNode;
+	const currentPrimaryFallback = currentPrimaryChildren.sibling;
+	const primaryChildrenFragmentRrops: OffscreenChildrenProps = {
+		mode: 'hidden',
+		children: primaryChildren
+	};
+	const primaryChildrenFragment = createWorkInProgress(
+		currentPrimaryChildren,
+		primaryChildrenFragmentRrops
+	);
+	let primaryFallbackFragment;
+	if (currentPrimaryFallback === null) {
+		primaryFallbackFragment = createFiberFromFragment(fallbackChildren, null);
+		primaryFallbackFragment.flag |= Placement;
+	} else {
+		primaryFallbackFragment = createWorkInProgress(
+			currentPrimaryFallback,
+			fallbackChildren
+		);
+	}
+	primaryChildrenFragment.return = fiber;
+	primaryFallbackFragment.return = fiber;
+	primaryChildrenFragment.sibling = primaryFallbackFragment;
+	fiber.child = primaryChildrenFragment;
+	return primaryFallbackFragment;
+}
+
+function updateOffscreenComponent(fiber: FiberNode) {
+	const nextProps = fiber.pendingProps;
+	const nextChildren = nextProps.children;
+	reconcileChildren(fiber, nextChildren);
+	return fiber.child;
+}
 
 function updateProvider(fiber: FiberNode) {
 	const provider = fiber.type;
@@ -65,6 +237,10 @@ function updateHostRoot(fiber: FiberNode, lane: Lane) {
 	updateQueue.shared.pending = null;
 	const { memoizzedState } = processUpdate(baseState, pending, lane);
 	fiber.memoizedState = memoizzedState;
+	const current = fiber.alternate;
+	if (current) {
+		current.memoizedState = memoizzedState;
+	}
 	//比较current中的fiber和新的children，生成新的子fiberNode
 	reconcileChildren(fiber, memoizzedState);
 	return fiber.child;

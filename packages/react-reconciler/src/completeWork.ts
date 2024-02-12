@@ -1,5 +1,5 @@
 import { FiberNode } from './fiber';
-import { NoFlags, Ref, Update } from './fiberFlag';
+import { NoFlags, Ref, Update, Visibility } from './fiberFlag';
 import {
 	Container,
 	Instance,
@@ -13,9 +13,12 @@ import {
 	FunctionComponet,
 	HostComponent,
 	HostRoot,
-	HostText
+	HostText,
+	OffscreenComponent,
+	SuspenseComponent
 } from './workTag';
 import { popProvider } from '../fiberContext';
+import { popSuspenseHandler } from './suspenseContext';
 
 function updateMark(fiber: FiberNode) {
 	fiber.flag |= Update;
@@ -51,6 +54,7 @@ export const completeWork = (fiber: FiberNode) => {
 		case HostRoot:
 		case Fragment:
 		case FunctionComponet:
+		case OffscreenComponent:
 			bubleProerties(fiber);
 			return;
 		case ContextProvider:
@@ -70,6 +74,23 @@ export const completeWork = (fiber: FiberNode) => {
 				const instance = createTextInstance(newProps.content);
 				fiber.stateNode = instance;
 			}
+			return;
+		case SuspenseComponent:
+			popSuspenseHandler();
+			const offscreen = fiber.child as FiberNode;
+			const isHidden = offscreen.pendingProps.mode === 'hidden';
+			const currentOffscreen = offscreen?.alternate;
+			if (currentOffscreen !== null) {
+				const wasHidden = currentOffscreen?.pendingProps.mode === 'hidden';
+				if (wasHidden !== isHidden) {
+					offscreen.flag |= Visibility;
+					bubleProerties(offscreen);
+				}
+			} else if (isHidden) {
+				offscreen.flag |= Visibility;
+				bubleProerties(offscreen);
+			}
+			bubleProerties(fiber);
 			return;
 		default:
 			if (__DEV__) {

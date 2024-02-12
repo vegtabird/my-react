@@ -71,3 +71,32 @@ export function schedulerPriorityToLane(schedulerPriority: number): Lane {
 	}
 	return NoLane;
 }
+
+export function markRootPinged(root: FiberRootNode, pingedLane: Lane) {
+	root.pingLanes |= root.suspendLanes & pingedLane;
+}
+
+export function markRootSuspended(root: FiberRootNode, suspendedLane: Lane) {
+	root.suspendLanes |= suspendedLane;
+	root.pingLanes &= ~suspendedLane;
+}
+export function getNextLane(root: FiberRootNode): Lane {
+	const pendingLanes = root.pendingLanes;
+
+	if (pendingLanes === NoLanes) {
+		return NoLane;
+	}
+	let nextLane = NoLane;
+
+	// 排除掉挂起的lane
+	const suspendedLanes = pendingLanes & ~root.suspendLanes;
+	if (suspendedLanes !== NoLanes) {
+		nextLane = getHighestPriorityLane(suspendedLanes);
+	} else {
+		const pingedLanes = pendingLanes & root.pingLanes;
+		if (pingedLanes !== NoLanes) {
+			nextLane = getHighestPriorityLane(pingedLanes);
+		}
+	}
+	return nextLane;
+}

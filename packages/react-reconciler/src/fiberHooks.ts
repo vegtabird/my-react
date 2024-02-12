@@ -9,11 +9,13 @@ import {
 	enqueueUpdate,
 	processUpdate
 } from './updateQueue';
-import { Action, ReactContext } from 'shared/ReactTypes';
+import { Action, ReactContext, Thenable, Usable } from 'shared/ReactTypes';
 import { scheduleUpdateOnFiber } from './workLoop';
 import { Lane, NoLane, requestUpdateLane } from './fiberLanes';
 import { FiberFlag, PassiveEffect } from './fiberFlag';
 import { HookHasEffect, Passive } from './hooksEffectTags';
+import { REACT_CONTEXT_TYPE } from 'shared/ReactSymbols';
+import { trackUsedThenable } from './thenable';
 
 interface Hook {
 	next: Hook | null;
@@ -341,17 +343,39 @@ function readContext<T>(context: ReactContext<T>): T {
 	return value;
 }
 
+function use<T>(useContext: Usable<T>) {
+	if (useContext !== null && typeof useContext === 'object') {
+		if (typeof (useContext as Thenable<T>).then === 'function') {
+			//thenable
+			const thenable = useContext as Thenable<T>;
+			return trackUsedThenable(thenable);
+		} else if (
+			(useContext as ReactContext<T>).$$typeof === REACT_CONTEXT_TYPE
+		) {
+			return readContext(useContext as ReactContext<T>);
+		}
+	}
+}
+
+export function resetOnUnwind() {
+	workingInProgressHook = null;
+	currentlyRenderingFiber = null;
+	currentHook = null;
+}
+
 const mountedDispatcher: Dispatcher = {
 	useState: mountedState,
 	useEffect: mountedEffect,
 	useTransition: mountedTransition,
 	useRef: mountedRef,
-	useContext: readContext
+	useContext: readContext,
+	use: use
 };
 const updatedDispatcher: Dispatcher = {
 	useState: updateState,
 	useEffect: updatedEffect,
 	useTransition: updateTransition,
 	useRef: updateRef,
-	useContext: readContext
+	useContext: readContext,
+	use: use
 };

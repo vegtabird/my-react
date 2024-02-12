@@ -6,6 +6,10 @@ import currentDispatcher, {
 import { jsx, isValidElementFn } from './src/jsx';
 
 export { createContext } from './src/context';
+export {
+	REACT_FRAGMENT_TYPE as Fragment,
+	REACT_SUSPENSE_TYPE as Suspense
+} from 'shared/ReactSymbols';
 
 export const useState: Dispatcher['useState'] = (initState) => {
 	const dispatcher = resolveDispatcher();
@@ -30,6 +34,11 @@ export const useTransition: Dispatcher['useTransition'] = () => {
 export const useRef: Dispatcher['useRef'] = (instance) => {
 	const dispatch = resolveDispatcher();
 	return dispatch.useRef(instance);
+};
+
+export const use: Dispatcher['use'] = (useable) => {
+	const dispatch = resolveDispatcher();
+	return dispatch.use(useable);
 };
 
 export const __SECRET_DATA_DO_NOT_CHANGE__ = {
