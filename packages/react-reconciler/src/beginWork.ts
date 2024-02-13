@@ -15,7 +15,8 @@ import {
 	Fragment,
 	ContextProvider,
 	SuspenseComponent,
-	OffscreenComponent
+	OffscreenComponent,
+	MemoComponent
 } from './workTag';
 import {
 	cloneChildFibers,
@@ -33,6 +34,7 @@ import {
 } from './fiberFlag';
 import { pushProvider } from '../fiberContext';
 import { pushSuspenseHandler } from './suspenseContext';
+import { shallowEqual } from 'shared/shallowEqual';
 
 let didRecieveUpdate = false;
 export function markDidRecieveUpdate() {
@@ -99,7 +101,7 @@ export const beginWork = (fiber: FiberNode, lane: Lane) => {
 		case HostText:
 			return null;
 		case FunctionComponet:
-			return updateFunctionComponent(fiber, lane);
+			return updateFunctionComponent(fiber, fiber.type, lane);
 		case Fragment:
 			return updateFragment(fiber);
 		case ContextProvider:
@@ -108,6 +110,8 @@ export const beginWork = (fiber: FiberNode, lane: Lane) => {
 			return updateSuspenseComponent(fiber);
 		case OffscreenComponent:
 			return updateOffscreenComponent(fiber);
+		case MemoComponent:
+			return updateMemoComponent(fiber, lane);
 		default:
 			if (__DEV__) {
 				console.warn('没有实现的tag', fiber.tag);
@@ -116,6 +120,27 @@ export const beginWork = (fiber: FiberNode, lane: Lane) => {
 	}
 	return null;
 };
+
+function updateMemoComponent(fiber: FiberNode, renderLane: Lane) {
+	const current = fiber.alternate;
+	const Component = fiber.type.type;
+	const nextProps = fiber.pendingProps;
+	if (current) {
+		if (
+			shallowEqual(current.memorizedProps, nextProps) &&
+			current.ref === fiber.ref
+		) {
+			//pop相同
+			didRecieveUpdate = false;
+			fiber.pendingProps = current.memorizedProps;
+			if (!checkScheduleStateOrContet(current, renderLane)) {
+				fiber.lanes = current.lanes;
+				return bailouOnAlreadyFinishedWork(fiber, renderLane);
+			}
+		}
+	}
+	return updateFunctionComponent(fiber, Component, renderLane);
+}
 
 function updateSuspenseComponent(fiber: FiberNode) {
 	const nextProps = fiber.pendingProps;
@@ -329,8 +354,12 @@ function updateHostComponent(fiber: FiberNode) {
  * 更新FunctionComponent:
  * 1.返回子fiberNode
  */
-function updateFunctionComponent(fiber: FiberNode, lane: Lane) {
-	const child = renderWithHooks(fiber, lane);
+function updateFunctionComponent(
+	fiber: FiberNode,
+	Component: FiberNode['type'],
+	lane: Lane
+) {
+	const child = renderWithHooks(fiber, Component, lane);
 	const current = fiber.alternate;
 	if (current !== null && !didRecieveUpdate) {
 		bailoutHook(fiber, lane);

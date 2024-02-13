@@ -9,6 +9,8 @@ export interface Dispatcher {
 	useRef: <T>(instance: T) => { current: T };
 	useContext: <T>(context: ReactContext<T>) => T;
 	use: <T>(useable: Usable<T>) => T | undefined;
+	useMemo: <T>(create: () => T, deps: any[] | void) => T;
+	useCallback: <T>(callback: T, deps: any[] | void) => T;
 }
 
 const currentDispatcher: { current: Dispatcher | null } = {

@@ -41,6 +41,16 @@ export const use: Dispatcher['use'] = (useable) => {
 	return dispatch.use(useable);
 };
 
+export const useCallback: Dispatcher['useCallback'] = (callback, deps) => {
+	const dispatch = resolveDispatcher();
+	return dispatch.useCallback(callback, deps);
+};
+
+export const useMemo: Dispatcher['useMemo'] = (create, deps) => {
+	const dispatch = resolveDispatcher();
+	return dispatch.useMemo(create, deps);
+};
+
 export const __SECRET_DATA_DO_NOT_CHANGE__ = {
 	currentDispatcher,
 	ReactCurrentBatchConfig
@@ -51,3 +61,4 @@ export const version = '0.0.0';
 // TODO 根据环境区分使用jsx/jsxDEV
 export const createElement = jsx;
 export const isValidElement = isValidElementFn;
+export { memo } from './src/memo';

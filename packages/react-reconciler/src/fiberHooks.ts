@@ -4,6 +4,7 @@ import internals from 'shared/internals';
 import {
 	Update,
 	UpdateQueue,
+	basicUpdateState,
 	createUpdate,
 	createUpdateQueue,
 	enqueueUpdate,
@@ -14,6 +15,7 @@ import { scheduleUpdateOnFiber } from './workLoop';
 import {
 	Lane,
 	NoLane,
+	NoLanes,
 	mergeLanes,
 	removeLanes,
 	requestUpdateLane
@@ -36,16 +38,17 @@ export interface Effect {
 	tag: FiberFlag;
 	create: EffectCallback | void;
 	destroy: EffectCallback | void;
-	deps: EffectDeps;
+	deps: HookDeps;
 	next: Effect | null;
 }
 
 export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 	lastEffect: Effect | null;
+	lastRenderState: State | null;
 }
 
 type EffectCallback = () => void;
-type EffectDeps = any[] | null;
+type HookDeps = any[] | null;
 
 const { currentDispatcher, ReactCurrentBatchConfig } = internals;
 
@@ -53,8 +56,12 @@ let workingInProgressHook: Hook | null = null;
 let currentlyRenderingFiber: FiberNode | null = null;
 let currentHook: Hook | null = null;
 let renderLane: Lane = NoLane;
-export const renderWithHooks = (fiber: FiberNode, lane: Lane) => {
-	//函数式组件时，jsx转换会将函数存在ReactElement的type上面
+export const renderWithHooks = (
+	fiber: FiberNode,
+	Component: FiberNode['type'],
+	lane: Lane
+) => {
+	//函数式组件时，jsx转换会将函数存在ReactElement的type上面'
 	/**
 	 * function App(){return <div>11</div>}
 	 * child = App()
@@ -72,7 +79,6 @@ export const renderWithHooks = (fiber: FiberNode, lane: Lane) => {
 		//mounted
 		currentDispatcher.current = mountedDispatcher;
 	}
-	const Component = fiber.type;
 	const props = fiber.pendingProps;
 	const children = Component(props);
 	currentlyRenderingFiber = null;
@@ -84,7 +90,7 @@ export const renderWithHooks = (fiber: FiberNode, lane: Lane) => {
 
 function updateState<State>(): [State, Dispatch<State>] {
 	const hook = updatedProgressHook();
-	const queue = hook.updateQueue as UpdateQueue<State>;
+	const queue = hook.updateQueue as FCUpdateQueue<State>;
 	const pending = queue.shared.pending;
 	let baseQueue = currentHook!.baseQueue;
 	const baseState = hook.baseState;
@@ -118,6 +124,7 @@ function updateState<State>(): [State, Dispatch<State>] {
 		hook.memorizedState = memoizzedState;
 		hook.baseState = newBaseState;
 		hook.baseQueue = newBaseQueue;
+		queue.lastRenderState = memoizzedState;
 	}
 	return [hook.memorizedState, queue.dispatch as Dispatch<State>];
 }
@@ -133,22 +140,38 @@ function mountedState<State>(
 		memoizedState = initState;
 	}
 	hook.memorizedState = memoizedState;
-	const queue = createUpdateQueue<State>();
+	const queue = createFCUpdateQueue<State>();
 	hook.updateQueue = queue;
 	hook.baseState = memoizedState;
 	//@ts-ignore
 	const disPatch = dispatchState.bind(null, currentlyRenderingFiber, queue);
 	queue.dispatch = disPatch;
+	queue.lastRenderState = memoizedState;
 	return [memoizedState, disPatch];
 }
 
 function dispatchState<State>(
 	fiber: FiberNode,
-	queue: UpdateQueue<State>,
+	queue: FCUpdateQueue<State>,
 	action: Action<State>
 ) {
 	const lane = requestUpdateLane();
 	const update = createUpdate(action, lane);
+	const current = fiber.alternate;
+	if (
+		fiber.lanes === NoLanes &&
+		(current === null || current.lanes === NoLanes)
+	) {
+		const currentState = queue.lastRenderState;
+		const eagerState = basicUpdateState<State>(action, currentState as State);
+		update.hasEagerState = true;
+		update.eagerState = eagerState;
+		if (Object.is(eagerState, currentState)) {
+			enqueueUpdate(queue, update, fiber, NoLane);
+			console.warn('命中eagerstate');
+			return;
+		}
+	}
 
 	enqueueUpdate(queue, update, fiber, lane);
 
@@ -219,7 +242,7 @@ function mountedProgressHook(): Hook {
 	}
 	return hook;
 }
-function areHookInputsEqual(nextDeps: EffectDeps, prevDeps: EffectDeps) {
+function areHookInputsEqual(nextDeps: HookDeps, prevDeps: HookDeps) {
 	if (prevDeps === null || nextDeps === null) {
 		return false;
 	}
@@ -259,7 +282,7 @@ function pushEffect(
 	hookFlags: FiberFlag,
 	create: EffectCallback | void,
 	destroy: EffectCallback | void,
-	deps: EffectDeps
+	deps: HookDeps
 ): Effect {
 	const effect: Effect = {
 		tag: hookFlags,
@@ -294,6 +317,7 @@ function pushEffect(
 function createFCUpdateQueue<State>() {
 	const updateQueue = createUpdateQueue<State>() as FCUpdateQueue<State>;
 	updateQueue.lastEffect = null;
+	updateQueue.lastRenderState = null;
 	return updateQueue;
 }
 function mountedEffect(create: () => void | void, deps: any[] | void) {
@@ -392,13 +416,61 @@ export function bailoutHook(wip: FiberNode, renderLane: Lane) {
 	wip.flag &= ~PassiveEffect;
 }
 
+function mountCallback<T>(callback: T, deps: HookDeps | undefined) {
+	const hook = mountedProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+	hook.memorizedState = [callback, nextDeps];
+	return callback;
+}
+
+function updateCallback<T>(callback: T, deps: HookDeps | undefined) {
+	const hook = updatedProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+	const prevState = hook.memorizedState;
+
+	if (nextDeps !== null) {
+		const prevDeps = prevState[1];
+		if (areHookInputsEqual(nextDeps, prevDeps)) {
+			return prevState[0];
+		}
+	}
+	hook.memorizedState = [callback, nextDeps];
+	return callback;
+}
+
+function mountMemo<T>(nextCreate: () => T, deps: HookDeps | undefined) {
+	const hook = mountedProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+	const nextValue = nextCreate();
+	hook.memorizedState = [nextValue, nextDeps];
+	return nextValue;
+}
+
+function updateMemo<T>(nextCreate: () => T, deps: HookDeps | undefined) {
+	const hook = updatedProgressHook();
+	const nextDeps = deps === undefined ? null : deps;
+	const prevState = hook.memorizedState;
+
+	if (nextDeps !== null) {
+		const prevDeps = prevState[1];
+		if (areHookInputsEqual(nextDeps, prevDeps)) {
+			return prevState[0];
+		}
+	}
+	const nextValue = nextCreate();
+	hook.memorizedState = [nextValue, nextDeps];
+	return nextValue;
+}
+
 const mountedDispatcher: Dispatcher = {
 	useState: mountedState,
 	useEffect: mountedEffect,
 	useTransition: mountedTransition,
 	useRef: mountedRef,
 	useContext: readContext,
-	use: use
+	use: use,
+	useMemo: mountMemo,
+	useCallback: mountCallback
 };
 const updatedDispatcher: Dispatcher = {
 	useState: updateState,
@@ -406,5 +478,7 @@ const updatedDispatcher: Dispatcher = {
 	useTransition: updateTransition,
 	useRef: updateRef,
 	useContext: readContext,
-	use: use
+	use: use,
+	useMemo: updateMemo,
+	useCallback: updateCallback
 };

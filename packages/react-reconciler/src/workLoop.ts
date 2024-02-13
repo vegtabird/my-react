@@ -107,7 +107,6 @@ function workLoopConcurrent() {
 		performUnitWork(workInProgress);
 	}
 }
-
 function renderRoot(node: FiberRootNode, lane: Lane, shouldTimeSlice: boolean) {
 	if (__DEV__) {
 		console.log('开始render shouldTimeSlice', shouldTimeSlice, node);

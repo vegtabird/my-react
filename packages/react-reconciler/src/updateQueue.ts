@@ -7,6 +7,8 @@ export interface Update<State> {
 	action: Action<State>;
 	next: Update<any> | null;
 	lane: Lane;
+	hasEagerState: boolean;
+	eagerState: State | null;
 }
 
 export interface UpdateQueue<State> {
@@ -16,11 +18,18 @@ export interface UpdateQueue<State> {
 	dispatch: Dispatch<State> | null;
 }
 
-export const createUpdate = <State>(action: Action<State>, lane: Lane) => {
+export const createUpdate = <State>(
+	action: Action<State>,
+	lane: Lane,
+	hasEagerState = false,
+	eagerState = null
+) => {
 	return {
 		action,
 		next: null,
-		lane: lane
+		lane: lane,
+		hasEagerState,
+		eagerState
 	} as Update<State>;
 };
 
@@ -54,6 +63,14 @@ export const enqueueUpdate = <State>(
 	}
 };
 
+export function basicUpdateState<State>(action: Action<State>, state: State) {
+	if (action instanceof Function) {
+		return action(state);
+	} else {
+		return action;
+	}
+}
+
 export const processUpdate = <State>(
 	baseState: State,
 	pendingUpdate: Update<State> | null,
@@ -86,10 +103,10 @@ export const processUpdate = <State>(
 				}
 				//update 优先级正常不跳过
 				const action = update.action;
-				if (action instanceof Function) {
-					newState = action(baseState);
+				if (update.hasEagerState) {
+					newState = update.eagerState as State;
 				} else {
-					newState = action;
+					newState = basicUpdateState(action, baseState);
 				}
 			} else {
 				const clone = createUpdate(update.action, update.lane);

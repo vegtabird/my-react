@@ -6,12 +6,14 @@ import {
 	Fragment,
 	ContextProvider,
 	SuspenseComponent,
-	OffscreenComponent
+	OffscreenComponent,
+	MemoComponent
 } from './workTag';
 import { FiberFlag, NoFlags } from './fiberFlag';
 import { Container } from 'hostConfig';
 import {
 	REACT_FRAGMENT_TYPE,
+	REACT_MEMO_TYPE,
 	REACT_PROVIDER_TYPE,
 	REACT_SUSPENSE_TYPE
 } from 'shared/ReactSymbols';
@@ -158,11 +160,15 @@ export function createFiberFromElement(element: ReactElementType) {
 	//div span p为hostComponet
 	if (typeof type === 'string') {
 		fiberTag = HostComponent;
-	} else if (
-		typeof type === 'object' &&
-		type.$$typeof === REACT_PROVIDER_TYPE
-	) {
-		fiberTag = ContextProvider;
+	} else if (typeof type === 'object') {
+		switch (type.$$typeof) {
+			case REACT_PROVIDER_TYPE:
+				fiberTag = ContextProvider;
+				break;
+			case REACT_MEMO_TYPE:
+				fiberTag = MemoComponent;
+				break;
+		}
 	} else if (type === REACT_SUSPENSE_TYPE) {
 		fiberTag = SuspenseComponent;
 	} else if (typeof type !== 'function' && __DEV__) {
